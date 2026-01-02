@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+const BACKEND_URL = "/api";
 
 interface AddOn {
     name: string;
@@ -30,7 +30,7 @@ export default function KitchenPage() {
 
     const fetchOrders = async () => {
         try {
-            const res = await fetch(`${BACKEND_URL}/orders`);
+            const res = await fetch(`${BACKEND_URL}/orders/pending`);
             const data = await res.json();
             if (data.success) {
                 setOrders(data.orders);
@@ -42,14 +42,22 @@ export default function KitchenPage() {
         }
     };
 
-    const handleReset = async () => {
-        if (!confirm("คุณต้องการล้างรายการออเดอร์ทั้งหมดใช่หรือไม่?")) return;
-
+    const handleComplete = async (orderId: number) => {
         try {
-            await fetch(`${BACKEND_URL}/orders`, { method: "DELETE" });
-            fetchOrders(); // Refresh immediately
+            await fetch(`${BACKEND_URL}/orders/${orderId}/complete`, { method: "POST" });
+            fetchOrders();
         } catch (error) {
-            alert("เกิดข้อผิดพลาดในการล้างออเดอร์");
+            console.error("Error completing order:", error);
+        }
+    };
+
+    const handleCancel = async (orderId: number) => {
+        if (!confirm("ต้องการยกเลิกออเดอร์นี้?")) return;
+        try {
+            await fetch(`${BACKEND_URL}/orders/${orderId}/cancel`, { method: "POST" });
+            fetchOrders();
+        } catch (error) {
+            console.error("Error cancelling order:", error);
         }
     };
 
@@ -133,20 +141,18 @@ export default function KitchenPage() {
                 <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
                     <div>
                         <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500 mb-2">
-                            👨‍🍳 ครัว (Kitchen Display)
+                            👨‍🍳 ครัว Kitchen Display
                         </h1>
                         <p className="text-gray-400 text-sm flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                             อัปเดตอัตโนมัติทุก 5 วินาที
+                            {orders.length > 0 && (
+                                <span className="ml-2 bg-orange-500 text-white px-2 py-0.5 rounded-full text-xs font-bold">
+                                    {orders.length} รอดำเนินการ
+                                </span>
+                            )}
                         </p>
                     </div>
-
-                    <button
-                        onClick={handleReset}
-                        className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-6 py-3 rounded-xl text-lg font-bold transition-all hover:scale-105 active:scale-95 shadow-lg shadow-red-500/10"
-                    >
-                        🗑️ ล้างออเดอร์ (Reset)
-                    </button>
                 </div>
 
                 {loading && orders.length === 0 ? (
@@ -218,13 +224,29 @@ export default function KitchenPage() {
                                         <span className="text-gray-500 text-sm">ยอดรวม</span>
                                         <span className="text-3xl font-bold text-orange-400">{order.total_price}.-</span>
                                     </div>
-                                    <button
-                                        onClick={() => handlePrint(order)}
-                                        className="w-full bg-slate-700 hover:bg-white hover:text-black text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 group-hover:shadow-lg"
-                                    >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                                        พิมพ์ใบเสร็จ
-                                    </button>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <button
+                                            onClick={() => handleCancel(order.id)}
+                                            className="bg-red-500/20 hover:bg-red-500/40 text-red-400 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-1 text-sm"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                            ยกเลิก
+                                        </button>
+                                        <button
+                                            onClick={() => handlePrint(order)}
+                                            className="bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-1 text-sm"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                                            พิมพ์
+                                        </button>
+                                        <button
+                                            onClick={() => handleComplete(order.id)}
+                                            className="bg-green-600 hover:bg-green-500 text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-1 text-sm"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                            เสร็จแล้ว
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         ))}

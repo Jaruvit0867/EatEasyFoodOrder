@@ -43,8 +43,9 @@ else
     echo "❌ Frontend install failed."
     exit 1
 fi
+cd ..
 
-# 3. Security Certs
+# 3. Security Certs (at project root level)
 echo -e "\n${GREEN}🔒 Generating SSL Certificates (for Mobile Mic)...${NC}"
 mkdir -p certificates
 # Check if key already exists to avoid overwriting/erroring if valid
@@ -54,7 +55,6 @@ if [ ! -f "certificates/key.pem" ]; then
 else
     echo "ℹ️  Certificates already exist."
 fi
-cd ..
 
 echo -e "\n${GREEN}✨ Setup Complete!${NC}"
 echo -e "👉 Type ${CYAN}./easy_run.sh${NC} to start the system."

@@ -24,6 +24,7 @@ interface OrderResponse {
   total_price: number;
   raw_gemini_response?: string;
   error?: string;
+  suggestions?: string[];
 }
 
 type AppState = "idle" | "recording" | "processing" | "review" | "confirmed" | "error";
@@ -40,6 +41,8 @@ export default function VoiceOrderPage() {
   const [confirmationMessage, setConfirmationMessage] = useState<string>("");
   const [liveTranscript, setLiveTranscript] = useState<string>(""); // Real-time transcript
   const [recordingTime, setRecordingTime] = useState<number>(0); // Recording duration
+  const [noteMode, setNoteMode] = useState<number>(-1); // -1 = order mode, >= 0 = adding note to cart item at index
+  const [suggestions, setSuggestions] = useState<string[]>([]); // Suggestions for failed orders
 
   // Audio recording refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -52,6 +55,14 @@ export default function VoiceOrderPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null); // Timer for silence detection
+  const noteModeRef = useRef<number>(-1); // Ref to track note mode in callbacks
+  const isProcessingRef = useRef(false); // Lock for stopRecording to prevent double calls
+
+  // Sync noteMode state to ref
+  useEffect(() => {
+    noteModeRef.current = noteMode;
+  }, [noteMode]);
   const transcriptRef = useRef<string>(""); // Store latest transcript for callback
 
   // Format recording time
@@ -85,7 +96,27 @@ export default function VoiceOrderPage() {
 
       if (!transcript) {
         setErrorMessage("ไม่ได้ยินเสียง กรุณาลองพูดอีกครั้ง");
+        setSuggestions([]); // Clear suggestions if empty
         setAppState("error");
+        setNoteMode(-1); // Exit note mode on error
+        return;
+      }
+
+      // If in note mode, save as note instead of processing as order
+      // Check both state and ref to be safe (Ref is more reliable in closures)
+      const currentNoteIndex = noteModeRef.current >= 0 ? noteModeRef.current : noteMode;
+
+      if (currentNoteIndex >= 0) {
+        setCart(prevCart => {
+          const newCart = [...prevCart];
+          if (newCart[currentNoteIndex]) {
+            newCart[currentNoteIndex] = { ...newCart[currentNoteIndex], note: transcript };
+          }
+          return newCart;
+        });
+        setNoteMode(-1); // Exit note mode
+        setAppState("idle");
+        setLiveTranscript("");
         return;
       }
 
@@ -109,12 +140,14 @@ export default function VoiceOrderPage() {
         setLiveTranscript(""); // Clear live transcript on success
       } else {
         setErrorMessage(data.error || "ไม่พบรายการอาหารในคำสั่ง กรุณาลองใหม่อีกครั้ง");
+        setSuggestions(data.suggestions || []);
         setAppState("error");
       }
     } catch (error) {
       console.error("Error processing transcript:", error);
       setErrorMessage("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
       setAppState("error");
+      setNoteMode(-1); // Exit note mode on error
     }
   };
 
@@ -164,20 +197,32 @@ export default function VoiceOrderPage() {
 
   // Stop recording (Defined first to be used by others)
   const stopRecording = useCallback(async () => {
+    if (isProcessingRef.current) return; // Prevent double calls
+    isProcessingRef.current = true;
+
     setAppState("processing");
 
-    // Stop Speech Recognition
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
+    try {
+      // Stop Speech Recognition
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
 
-    // Stop Timer
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
+      // Stop Timer
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
 
-    // Process immediately
-    await processTranscript();
+      // Clear Silence Timer
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+      }
+
+      // Process immediately
+      await processTranscript();
+    } finally {
+      isProcessingRef.current = false;
+    }
   }, [processTranscript]);
 
   // Start live transcript using Web Speech API
@@ -216,9 +261,21 @@ export default function VoiceOrderPage() {
         transcriptRef.current = fullTranscript;
 
         // Auto-detect: if we have a final result with a menu item, stop and process
-        if (finalTranscript && detectMenuItem(finalTranscript)) {
+        // ONLY in Order Mode (in Note Mode, we rely on silence detection)
+        if (noteModeRef.current < 0 && finalTranscript && detectMenuItem(finalTranscript)) {
           console.log("Menu detected, auto-stopping:", finalTranscript);
           stopRecording(); // Use the unified stop function
+          return; // EXIT HERE to prevent setting new silence timer
+        }
+
+        // Silence Detection (Auto-stop after 1.0s of silence for ALL modes)
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+
+        if (fullTranscript.trim().length > 0) {
+          silenceTimerRef.current = setTimeout(() => {
+            console.log("Silence detected, auto-stopping...");
+            stopRecording();
+          }, 1000);
         }
       };
 
@@ -249,6 +306,9 @@ export default function VoiceOrderPage() {
   const startRecording = useCallback(async () => {
     try {
       if (appState === "recording") return;
+
+      setSuggestions([]); // Clear suggestions on start
+      setErrorMessage(""); // Clear error on start
 
       // Security check for Microphone on non-localhost/non-https
       if (window.location.hostname !== "localhost" && window.location.protocol !== "https:") {
@@ -363,7 +423,36 @@ export default function VoiceOrderPage() {
     setConfirmationMessage("");
     setLiveTranscript("");
     setRecordingTime(0);
+    setSuggestions([]);
     transcriptRef.current = "";
+  };
+
+  const handleSuggestionClick = async (text: string) => {
+    setAppState("processing");
+    setSuggestions([]);
+    setErrorMessage("");
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/process-text-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript: text }),
+      });
+      const data = await response.json();
+
+      if (data.success && data.items.length > 0) {
+        const newItem = data.items[0];
+        setCart(prev => [...prev, newItem]);
+        setAppState("idle");
+      } else {
+        setErrorMessage(data.error || "ไม่พบรายการ");
+        setSuggestions(data.suggestions || []);
+        setAppState("error");
+      }
+    } catch (err) {
+      setErrorMessage("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
+      setAppState("error");
+    }
   };
 
 
@@ -403,11 +492,38 @@ export default function VoiceOrderPage() {
         {/* 2. Main Interaction Area (Centered) */}
         <div className="flex flex-col items-center justify-center gap-4 grow">
           {/* Status Text */}
-          <div className="text-center h-8 flex flex-col justify-end">
-            {appState === "idle" && <p className="text-lg md:text-2xl text-gray-300 font-medium animate-fade-in">กดปุ่มแล้วพูด</p>}
-            {appState === "recording" && <p className="text-xl md:text-3xl text-red-500 font-bold animate-pulse">กำลังฟัง... {formatTime(recordingTime)}</p>}
+          <div className="text-center h-12 flex flex-col justify-end">
+            {appState === "idle" && noteMode < 0 && <p className="text-lg md:text-2xl text-gray-300 font-medium animate-fade-in">กดปุ่มแล้วพูด</p>}
+            {appState === "idle" && noteMode >= 0 && (
+              <div className="animate-fade-in">
+                <p className="text-sm text-gray-500">{cart[noteMode]?.menu_name}</p>
+                <p className="text-lg md:text-2xl text-orange-400 font-bold">🎤 พูดรายละเอียด</p>
+              </div>
+            )}
+            {appState === "recording" && noteMode < 0 && <p className="text-xl md:text-3xl text-red-500 font-bold animate-pulse">กำลังฟัง... {formatTime(recordingTime)}</p>}
+            {appState === "recording" && noteMode >= 0 && <p className="text-xl md:text-3xl text-orange-500 font-bold animate-pulse">พูดรายละเอียด... {formatTime(recordingTime)}</p>}
             {appState === "processing" && <p className="text-xl md:text-2xl text-blue-400 font-bold animate-pulse">กำลังประมวลผล...</p>}
-            {appState === "error" && <p className="text-sm md:text-lg text-red-400 font-bold bg-red-500/10 px-3 py-1 rounded-lg">{errorMessage}</p>}
+            {appState === "error" && (
+              <div className="flex flex-col items-center w-full max-w-md mx-auto z-50">
+                <p className="text-sm md:text-lg text-red-400 font-bold bg-red-500/10 px-4 py-2 rounded-xl mb-3 border border-red-500/20">{errorMessage}</p>
+                {suggestions.length > 0 && (
+                  <div className="animate-fade-in w-full">
+                    <p className="text-xs text-gray-500 mb-2">คุณหมายถึงรายการเหล่านี้หรือไม่?</p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {suggestions.map((s, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleSuggestionClick(s)}
+                          className="px-4 py-2 bg-slate-800 hover:bg-orange-500 hover:text-white rounded-lg text-sm md:text-base text-orange-400 border border-slate-700 hover:border-orange-500 transition-all shadow-lg active:scale-95"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             {appState === "confirmed" && <p className="text-xl md:text-2xl text-green-500 font-bold">{confirmationMessage}</p>}
           </div>
 
@@ -425,8 +541,8 @@ export default function VoiceOrderPage() {
               md:w-64 md:h-64
               lg:w-72 lg:h-72
               rounded-full flex flex-col items-center justify-center transition-all duration-500
-              ${appState === "idle" || appState === "review" || appState === "error" ? "bg-slate-800 hover:bg-slate-700 shadow-xl border-4 border-slate-700 hover:scale-105" : ""}
-              ${appState === "recording" ? "bg-red-500/10 shadow-[0_0_50px_rgba(239,68,68,0.4)] scale-110 border-4 border-red-500 animate-pulse" : ""}
+              ${appState === "idle" || appState === "review" || appState === "error" ? (noteMode >= 0 ? "bg-orange-500/10 shadow-[0_0_50px_rgba(249,115,22,0.3)] border-4 border-orange-500 hover:scale-105 animate-pulse" : "bg-slate-800 hover:bg-slate-700 shadow-xl border-4 border-slate-700 hover:scale-105") : ""}
+              ${appState === "recording" ? (noteMode >= 0 ? "bg-orange-500/20 shadow-[0_0_50px_rgba(249,115,22,0.5)] scale-110 border-4 border-orange-500 animate-pulse" : "bg-red-500/10 shadow-[0_0_50px_rgba(239,68,68,0.4)] scale-110 border-4 border-red-500 animate-pulse") : ""}
               ${appState === "processing" ? "bg-slate-800 border-4 border-blue-500 opacity-80 cursor-not-allowed" : ""}
               ${appState === "confirmed" ? "bg-green-500 text-white border-4 border-green-400 scale-100" : ""}
             `}
@@ -434,12 +550,12 @@ export default function VoiceOrderPage() {
             <div className="relative z-10 flex flex-col items-center">
               {(appState === "idle" || appState === "review" || appState === "error") && (
                 <>
-                  <svg className="w-16 h-16 landscape:w-12 landscape:h-12 md:w-24 md:h-24 text-orange-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
-                  <span className="text-lg landscape:text-base md:text-2xl font-bold text-white">{cart.length > 0 ? "สั่งเพิ่ม" : "เริ่มสั่ง"}</span>
+                  <svg className={`w-16 h-16 landscape:w-12 landscape:h-12 md:w-24 md:h-24 ${noteMode >= 0 ? "text-orange-400" : "text-orange-500"} mb-2`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                  <span className="text-lg landscape:text-base md:text-2xl font-bold text-white">{noteMode >= 0 ? "พูดเลย" : (cart.length > 0 ? "สั่งเพิ่ม" : "เริ่มสั่ง")}</span>
                 </>
               )}
               {appState === "recording" && (
-                <svg className="w-16 h-16 md:w-24 md:h-24 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" /></svg>
+                <svg className={`w-16 h-16 md:w-24 md:h-24 ${noteMode >= 0 ? "text-orange-500" : "text-red-500"}`} fill="currentColor" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" /></svg>
               )}
               {appState === "processing" && (
                 <svg className="w-12 h-12 md:w-20 md:h-20 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
@@ -539,7 +655,7 @@ export default function VoiceOrderPage() {
                           const newPrice = basePrice + newAddOns.filter(a => a.selected).reduce((sum, a) => sum + a.price, 0);
                           updateCartItem(index, { ...item, add_ons: newAddOns, price: newPrice });
                         }}
-                        className={`px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-xs md:text-sm font-bold transition-all border-2 ${addon.selected
+                        className={`px-4 py-2 md:px-5 md:py-3 rounded-xl text-sm md:text-base font-bold transition-all border-2 ${addon.selected
                           ? "bg-green-500/20 text-green-400 border-green-500"
                           : "bg-slate-800 text-gray-400 border-slate-700 hover:border-gray-500 hover:bg-slate-700"
                           }`}
@@ -554,7 +670,7 @@ export default function VoiceOrderPage() {
                     {/* Delete Button */}
                     <button
                       onClick={() => deleteFromCart(index)}
-                      className="h-10 w-14 md:h-14 md:w-20 rounded-xl bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500 hover:text-white text-base md:text-xl font-bold transition-all active:scale-95 flex items-center justify-center"
+                      className="h-12 w-16 md:h-16 md:w-24 rounded-xl bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500 hover:text-white text-lg md:text-2xl font-bold transition-all active:scale-95 flex items-center justify-center"
                     >
                       ลบ
                     </button>
@@ -565,19 +681,50 @@ export default function VoiceOrderPage() {
                           if (item.quantity > 1) updateCartItem(index, { ...item, quantity: item.quantity - 1 });
                           else deleteFromCart(index);
                         }}
-                        className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-colors active:bg-slate-500"
+                        className="w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-colors active:bg-slate-500"
                       >
-                        <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
+                        <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
                       </button>
-                      <span className="w-8 md:w-10 text-center text-lg md:text-xl font-bold text-white">{item.quantity}</span>
+                      <span className="w-10 md:w-14 text-center text-xl md:text-2xl font-bold text-white">{item.quantity}</span>
                       <button
                         onClick={() => updateCartItem(index, { ...item, quantity: item.quantity + 1 })}
-                        className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-colors active:bg-slate-500"
+                        className="w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-colors active:bg-slate-500"
                       >
-                        <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                        <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                       </button>
                     </div>
                   </div>
+                </div>
+
+                {/* Note Section */}
+                <div className="mt-4 pt-4 border-t border-gray-800">
+                  {item.note ? (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl md:text-2xl">📝</span>
+                        <span className="text-yellow-400 text-lg md:text-xl">{item.note}</span>
+                      </div>
+                      <button
+                        onClick={() => { setNoteMode(index); }}
+                        className="px-4 py-2 bg-slate-800 rounded-lg text-sm md:text-base text-gray-300 hover:text-white hover:bg-slate-700 transition-colors"
+                      >
+                        แก้ไข
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setNoteMode(index);
+                        // Small timeout to allow state update and then start recording
+                        setTimeout(() => startRecording(), 50);
+                      }}
+                      className="w-full py-4 text-lg md:text-xl text-gray-300 hover:text-orange-400 bg-slate-800/50 hover:bg-orange-500/10 border-2 border-dashed border-gray-700 hover:border-orange-500/50 rounded-xl transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+                    >
+                      <span className="text-orange-500 text-2xl">🎤</span>
+                      <span className="font-bold">เพิ่มรายละเอียด</span>
+                      <span className="text-base text-gray-500 font-normal">(พูดได้เลย เช่น ไม่เผ็ด, ใส่กล่อง, เลือกเส้น)</span>
+                    </button>
+                  )}
                 </div>
               </div>
             ))
@@ -595,17 +742,17 @@ export default function VoiceOrderPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-3 md:gap-4">
+            <div className="grid grid-cols-4 gap-4 md:gap-5">
               <button
                 onClick={() => { setCart([]); resetToIdle(); }}
-                className="col-span-1 h-12 md:h-14 rounded-xl bg-slate-800 hover:bg-slate-700 text-gray-400 font-bold border border-slate-700 active:scale-95 transition-transform text-sm md:text-base"
+                className="col-span-1 h-14 md:h-16 rounded-2xl bg-slate-800 hover:bg-slate-700 text-gray-400 font-bold border border-slate-700 active:scale-95 transition-transform text-base md:text-lg"
               >
                 ล้าง
               </button>
               <button
                 onClick={confirmOrder}
                 disabled={appState === "processing"}
-                className="col-span-3 h-12 md:h-14 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white text-lg md:text-xl font-bold shadow-lg shadow-orange-500/20 transform active:scale-95 transition-all"
+                className="col-span-3 h-14 md:h-16 rounded-2xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white text-xl md:text-2xl font-bold shadow-lg shadow-orange-500/20 transform active:scale-95 transition-all"
               >
                 ยืนยันรายการ
               </button>
@@ -613,6 +760,14 @@ export default function VoiceOrderPage() {
           </div>
         )}
       </section>
+
+      {/* Note Mode Overlay - Just blur cart area */}
+      {noteMode >= 0 && (
+        <div
+          className="fixed right-0 top-0 bottom-0 w-full landscape:w-1/2 z-40 bg-black/60 backdrop-blur-md animate-fade-in cursor-pointer"
+          onClick={() => setNoteMode(-1)}
+        />
+      )}
     </main>
   );
 }

@@ -58,16 +58,14 @@ if %errorlevel% neq 0 (
 ) else (
     echo [OK] Frontend installed.
 )
+cd ..
 
-:: 3. Security Certs
+:: 3. Security Certs (at project root level)
 echo.
 echo [STEP 3] SSL Certificates (for Mobile Mic)...
 if not exist "certificates" mkdir certificates
 if not exist "certificates\key.pem" (
     echo [INFO] Generating certificates using Python...
-    cd backend
-    call venv\Scripts\activate.bat
-    cd ..
     python generate_certs.py
     if exist "certificates\key.pem" (
         echo [OK] Certificates generated.
@@ -77,7 +75,6 @@ if not exist "certificates\key.pem" (
 ) else (
     echo [INFO] Certificates already exist.
 )
-cd ..
 
 echo.
 echo ==========================================

@@ -32,9 +32,22 @@ timeout /t 3 /nobreak >nul
 echo.
 echo [OK] System is RUNNING in separate windows!
 echo ===================================================
-echo    Tablet/Mobile Access:  https://%IPV4%:3000
-echo    PC/Local Access:       https://localhost:3000
+echo                    ENDPOINTS
 echo ===================================================
-echo [INFO] On Mobile: If you see 'Security Warning', click Advanced -> Proceed
+echo.
+echo   [Order Page - Customer]
+echo      https://localhost:3000
+echo      https://%IPV4%:3000
+echo.
+echo   [Kitchen Display]
+echo      https://localhost:3000/kitchen
+echo      https://%IPV4%:3000/kitchen
+echo.
+echo   [Dashboard - Owner]
+echo      https://localhost:3000/dashboard
+echo      https://%IPV4%:3000/dashboard
+echo.
+echo ===================================================
+echo [INFO] On Mobile: If you see 'Security Warning', click Advanced -^> Proceed
 echo [INFO] Close the opened windows to stop the servers.
 pause
