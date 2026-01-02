@@ -24,7 +24,7 @@ if %errorlevel% neq 0 (
     echo [ERROR] Node.js/npm not found.
     echo Opening Node.js download page...
     start https://nodejs.org/en/download/
-    echo [IMPORTANT] Please install Node.js (LTS).
+    echo [IMPORTANT] Please install Node.js (LTS^).
     echo After installation, restart this script.
     pause
     exit /b 1
@@ -64,13 +64,15 @@ echo.
 echo [STEP 3] SSL Certificates (for Mobile Mic)...
 if not exist "certificates" mkdir certificates
 if not exist "certificates\key.pem" (
-    where openssl >nul 2>&1
-    if %errorlevel% equ 0 (
-        openssl req -x509 -newkey rsa:2048 -keyout certificates\key.pem -out certificates\cert.pem -days 365 -nodes -subj "/CN=EatEasyLocal"
+    echo [INFO] Generating certificates using Python...
+    cd backend
+    call venv\Scripts\activate.bat
+    cd ..
+    python generate_certs.py
+    if exist "certificates\key.pem" (
         echo [OK] Certificates generated.
     ) else (
-        echo [WARN] OpenSSL not found. Custom certificates skipped.
-        echo        (This is usually fine, standard dev servers handle it).
+        echo [ERROR] Certificate generation failed.
     )
 ) else (
     echo [INFO] Certificates already exist.

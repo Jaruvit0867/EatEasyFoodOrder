@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/venv/
+backend/.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# SSL Certificates
+certificates/
+*.pem
+*.key
+*.crt
+
+# Database
+*.sqlite
+*.db
+backend/orders.sqlite
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Backend specific (if not covered above)
+backend/requirements.txt.bak
+
+# Frontend specific (handled by frontend/.gitignore mostly, but good to have)
+frontend/.next/
+frontend/out/
+frontend/build/
