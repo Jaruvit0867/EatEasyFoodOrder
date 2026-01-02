@@ -6,7 +6,11 @@ echo 🔧 Setting up EatEasy Food Order System...
 :: Check for Python
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo ❌ Python could not be found. Please install Python.
+    echo ❌ Python could not be found.
+    echo 💡 Opening Python download page...
+    start https://www.python.org/downloads/
+    echo 👉 Please install Python, ensuring you check "Add Python to PATH" during installation.
+    echo    Then restart this script.
     pause
     exit /b 1
 )
@@ -14,7 +18,11 @@ if %errorlevel% neq 0 (
 :: Check for Node
 call npm --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo ❌ Node.js/npm could not be found. Please install Node.js.
+    echo ❌ Node.js/npm could not be found.
+    echo 💡 Opening Node.js download page...
+    start https://nodejs.org/en/download/
+    echo 👉 Please install Node.js (LTS version recommended).
+    echo    Then restart this script.
     pause
     exit /b 1
 )
