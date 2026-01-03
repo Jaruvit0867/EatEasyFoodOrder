@@ -15,6 +15,7 @@ interface OrderItem {
   note: string | null;
   price: number | null;
   add_ons: AddOn[];
+  dineOption?: "dine-in" | "takeaway"; // ทานที่ร้าน หรือ ใส่กล่องกลับบ้าน
 }
 
 interface OrderResponse {
@@ -43,6 +44,7 @@ export default function VoiceOrderPage() {
   const [recordingTime, setRecordingTime] = useState<number>(0); // Recording duration
   const [noteMode, setNoteMode] = useState<number>(-1); // -1 = order mode, >= 0 = adding note to cart item at index
   const [suggestions, setSuggestions] = useState<string[]>([]); // Suggestions for failed orders
+  const [showValidationModal, setShowValidationModal] = useState<boolean>(false); // Modal for validation errors
 
   // Audio recording refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -58,6 +60,7 @@ export default function VoiceOrderPage() {
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null); // Timer for silence detection
   const noteModeRef = useRef<number>(-1); // Ref to track note mode in callbacks
   const isProcessingRef = useRef(false); // Lock for stopRecording to prevent double calls
+  const hasAutoStoppedRef = useRef(false); // Prevent double auto-stop from Speech API events
 
   // Sync noteMode state to ref
   useEffect(() => {
@@ -86,7 +89,18 @@ export default function VoiceOrderPage() {
   };
 
   // Process transcript with backend (text-based, no audio upload)
+  const isProcessingTranscriptRef = useRef(false); // Lock to prevent concurrent transcript processing
+
   const processTranscript = async () => {
+    // === CRITICAL: Prevent double processing ===
+    // If already processing, DO NOT process again
+    if (isProcessingTranscriptRef.current) {
+      console.log("[DEBUG] processTranscript blocked - already processing");
+      return;
+    }
+    isProcessingTranscriptRef.current = true;
+    console.log("[DEBUG] processTranscript started");
+
     try {
       // Use the transcript from ref (state might not be updated yet due to React closure)
       const transcript = transcriptRef.current.trim();
@@ -95,6 +109,7 @@ export default function VoiceOrderPage() {
       transcriptRef.current = "";
 
       if (!transcript) {
+        console.log("[DEBUG] Empty transcript, showing error");
         setErrorMessage("ไม่ได้ยินเสียง กรุณาลองพูดอีกครั้ง");
         setSuggestions([]); // Clear suggestions if empty
         setAppState("error");
@@ -129,10 +144,12 @@ export default function VoiceOrderPage() {
       });
 
       const data: OrderResponse = await response.json();
+      console.log("[DEBUG] Backend response:", data.success, data.items?.length);
 
       if (data.success && data.items.length > 0) {
         // ADD to cart instead of replacing
         const newItem = data.items[0];
+        console.log("[DEBUG] Adding to cart:", newItem.menu_name);
         setCart(prevCart => [...prevCart, newItem]);
         setOrderData(data);
         // STAY ON IDLE to allow continuous ordering (Cart is visible on right)
@@ -148,6 +165,10 @@ export default function VoiceOrderPage() {
       setErrorMessage("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
       setAppState("error");
       setNoteMode(-1); // Exit note mode on error
+    } finally {
+      // === ALWAYS reset lock after processing ===
+      console.log("[DEBUG] processTranscript finished, resetting lock");
+      isProcessingTranscriptRef.current = false;
     }
   };
 
@@ -262,17 +283,28 @@ export default function VoiceOrderPage() {
 
         // Auto-detect: if we have a final result with a menu item, stop and process
         // ONLY in Order Mode (in Note Mode, we rely on silence detection)
-        if (noteModeRef.current < 0 && finalTranscript && detectMenuItem(finalTranscript)) {
+        // Use hasAutoStoppedRef to prevent multiple calls from rapid Speech API events
+        if (noteModeRef.current < 0 && finalTranscript && detectMenuItem(finalTranscript) && !hasAutoStoppedRef.current) {
+          hasAutoStoppedRef.current = true; // Lock immediately to prevent double calls
           console.log("Menu detected, auto-stopping:", finalTranscript);
+          // Clear silence timer before stopping to prevent race condition
+          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
           stopRecording(); // Use the unified stop function
           return; // EXIT HERE to prevent setting new silence timer
         }
 
         // Silence Detection (Auto-stop after 1.0s of silence for ALL modes)
+        // Also check hasAutoStoppedRef to prevent double-trigger with menu detection
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
 
-        if (fullTranscript.trim().length > 0) {
+        if (fullTranscript.trim().length > 0 && !hasAutoStoppedRef.current) {
           silenceTimerRef.current = setTimeout(() => {
+            // Double-check the lock hasn't been set by menu detection while timer was waiting
+            if (hasAutoStoppedRef.current) {
+              console.log("[DEBUG] Silence timer blocked - already auto-stopped");
+              return;
+            }
+            hasAutoStoppedRef.current = true; // Lock to prevent menu detection from firing after
             console.log("Silence detected, auto-stopping...");
             stopRecording();
           }, 1000);
@@ -319,6 +351,7 @@ export default function VoiceOrderPage() {
 
       setLiveTranscript("");
       setRecordingTime(0);
+      hasAutoStoppedRef.current = false; // Reset auto-stop lock for new recording session
 
       // Start recording timer
       timerRef.current = setInterval(() => {
@@ -374,18 +407,36 @@ export default function VoiceOrderPage() {
     // Check both React state AND the Ref lock
     if (cart.length === 0 || appState === "processing" || isSubmittingRef.current) return;
 
+    // Validate: All items must have dineOption selected
+    const missingDineOption = cart.some(item => !item.dineOption);
+    if (missingDineOption) {
+      setShowValidationModal(true);
+      return;
+    }
+
     // Immediately lock
     isSubmittingRef.current = true;
     setAppState("processing");
 
     try {
+      // Prepare items: append "ใส่กล่องกลับบ้าน" to note for takeaway items
+      const itemsToSend = cart.map(item => {
+        if (item.dineOption === "takeaway") {
+          const existingNote = item.note ? item.note.trim() : "";
+          const takeawayNote = "ใส่กล่องกลับบ้าน";
+          const newNote = existingNote ? `${existingNote}, ${takeawayNote}` : takeawayNote;
+          return { ...item, note: newNote };
+        }
+        return item;
+      });
+
       const response = await fetch(`${BACKEND_URL}/confirm-order`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          items: cart,
+          items: itemsToSend,
           total_price: getCartTotal(),
         }),
       });
@@ -665,6 +716,32 @@ export default function VoiceOrderPage() {
                     ))}
                   </div>
 
+                  {/* Dine-in / Takeaway Selection */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => updateCartItem(index, { ...item, dineOption: "dine-in" })}
+                      className={`h-12 px-3 md:h-14 md:px-4 rounded-xl text-sm md:text-base font-bold transition-all border-2 flex items-center gap-1 ${item.dineOption === "dine-in"
+                        ? "bg-blue-500/20 text-blue-400 border-blue-500"
+                        : !item.dineOption
+                          ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/50 animate-pulse"
+                          : "bg-slate-800 text-gray-400 border-slate-700 hover:border-gray-500"
+                        }`}
+                    >
+                      🍽️ ทานที่ร้าน
+                    </button>
+                    <button
+                      onClick={() => updateCartItem(index, { ...item, dineOption: "takeaway" })}
+                      className={`h-12 px-3 md:h-14 md:px-4 rounded-xl text-sm md:text-base font-bold transition-all border-2 flex items-center gap-1 ${item.dineOption === "takeaway"
+                        ? "bg-green-500/20 text-green-400 border-green-500"
+                        : !item.dineOption
+                          ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/50 animate-pulse"
+                          : "bg-slate-800 text-gray-400 border-slate-700 hover:border-gray-500"
+                        }`}
+                    >
+                      📦 กลับบ้าน
+                    </button>
+                  </div>
+
                   {/* Quantity Stepper & Delete */}
                   <div className="flex items-center gap-2 md:gap-3">
                     {/* Delete Button */}
@@ -767,6 +844,27 @@ export default function VoiceOrderPage() {
           className="fixed right-0 top-0 bottom-0 w-full landscape:w-1/2 z-40 bg-black/60 backdrop-blur-md animate-fade-in cursor-pointer"
           onClick={() => setNoteMode(-1)}
         />
+      )}
+
+      {/* Validation Modal - Custom UI for missing dine option */}
+      {showValidationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in">
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-6 md:p-8 max-w-md mx-4 shadow-2xl border border-slate-700/50 animate-scale-in">
+            <div className="text-center">
+              <div className="text-5xl md:text-6xl mb-4">⚠️</div>
+              <h3 className="text-xl md:text-2xl font-bold text-white mb-3">กรุณาเลือกรูปแบบการรับอาหาร</h3>
+              <p className="text-gray-400 mb-6">
+                กดปุ่ม <span className="text-blue-400 font-bold">🍽️ ทานที่ร้าน</span> หรือ <span className="text-green-400 font-bold">📦 กลับบ้าน</span> ให้ครบทุกรายการก่อนยืนยัน
+              </p>
+              <button
+                onClick={() => setShowValidationModal(false)}
+                className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white text-lg md:text-xl font-bold shadow-lg shadow-orange-500/20 transition-all active:scale-95"
+              >
+                เข้าใจแล้ว
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );
