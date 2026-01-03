@@ -403,6 +403,7 @@ def update_menu_item(item_id: int, updates: MenuItemUpdate):
 
     
     query = f"UPDATE menu_items SET {', '.join(fields)} WHERE id = ?"
+    values.append(item_id)  # Add item_id for WHERE clause
     cursor.execute(query, values)
     conn.commit()
     conn.close()

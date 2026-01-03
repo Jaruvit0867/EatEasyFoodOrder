@@ -592,10 +592,10 @@ export default function VoiceOrderPage() {
               md:w-64 md:h-64
               lg:w-72 lg:h-72
               rounded-full flex flex-col items-center justify-center transition-all duration-500
-              ${appState === "idle" || appState === "review" || appState === "error" ? (noteMode >= 0 ? "bg-orange-500/10 shadow-[0_0_50px_rgba(249,115,22,0.3)] border-4 border-orange-500 hover:scale-105 animate-pulse" : "bg-slate-800 hover:bg-slate-700 shadow-xl border-4 border-slate-700 hover:scale-105") : ""}
-              ${appState === "recording" ? (noteMode >= 0 ? "bg-orange-500/20 shadow-[0_0_50px_rgba(249,115,22,0.5)] scale-110 border-4 border-orange-500 animate-pulse" : "bg-red-500/10 shadow-[0_0_50px_rgba(239,68,68,0.4)] scale-110 border-4 border-red-500 animate-pulse") : ""}
+              ${appState === "idle" || appState === "review" || appState === "error" ? (noteMode >= 0 ? "bg-orange-500/10 border-4 border-orange-500 hover:scale-105 glow-pulse-orange" : "bg-slate-800/80 hover:bg-slate-700 border-4 border-orange-500/50 hover:border-orange-500 hover:scale-105 glow-pulse-orange animate-float") : ""}
+              ${appState === "recording" ? (noteMode >= 0 ? "bg-orange-500/20 scale-110 border-4 border-orange-500 glow-recording" : "bg-red-500/10 scale-110 border-4 border-red-500 glow-recording") : ""}
               ${appState === "processing" ? "bg-slate-800 border-4 border-blue-500 opacity-80 cursor-not-allowed" : ""}
-              ${appState === "confirmed" ? "bg-green-500 text-white border-4 border-green-400 scale-100" : ""}
+              ${appState === "confirmed" ? "bg-green-500 text-white border-4 border-green-400 scale-100 glow-green" : ""}
             `}
           >
             <div className="relative z-10 flex flex-col items-center">
@@ -674,7 +674,7 @@ export default function VoiceOrderPage() {
             </div>
           ) : (
             cart.map((item, index) => (
-              <div key={index} className="bg-[#0f172a] rounded-xl p-4 md:p-5 border border-gray-700/50 relative group">
+              <div key={index} className="glass-dark rounded-2xl p-4 md:p-5 border border-white/5 relative group card-hover">
                 <div className="flex justify-between items-start mb-2 md:mb-4 pr-0">
                   <div className="flex items-start gap-3 md:gap-4">
                     <div className="bg-slate-700/50 w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-lg text-gray-400 font-mono text-base md:text-lg font-bold shrink-0">
@@ -721,10 +721,10 @@ export default function VoiceOrderPage() {
                     <button
                       onClick={() => updateCartItem(index, { ...item, dineOption: "dine-in" })}
                       className={`h-12 px-3 md:h-14 md:px-4 rounded-xl text-sm md:text-base font-bold transition-all border-2 flex items-center gap-1 ${item.dineOption === "dine-in"
-                        ? "bg-blue-500/20 text-blue-400 border-blue-500"
+                        ? "bg-blue-500/20 text-blue-400 border-blue-500 glow-blue"
                         : !item.dineOption
                           ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/50 animate-pulse"
-                          : "bg-slate-800 text-gray-400 border-slate-700 hover:border-gray-500"
+                          : "bg-slate-800/50 text-gray-400 border-slate-700 hover:border-gray-500 hover:bg-slate-700/50"
                         }`}
                     >
                       🍽️ ทานที่ร้าน
@@ -732,10 +732,10 @@ export default function VoiceOrderPage() {
                     <button
                       onClick={() => updateCartItem(index, { ...item, dineOption: "takeaway" })}
                       className={`h-12 px-3 md:h-14 md:px-4 rounded-xl text-sm md:text-base font-bold transition-all border-2 flex items-center gap-1 ${item.dineOption === "takeaway"
-                        ? "bg-green-500/20 text-green-400 border-green-500"
+                        ? "bg-green-500/20 text-green-400 border-green-500 glow-green"
                         : !item.dineOption
                           ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/50 animate-pulse"
-                          : "bg-slate-800 text-gray-400 border-slate-700 hover:border-gray-500"
+                          : "bg-slate-800/50 text-gray-400 border-slate-700 hover:border-gray-500 hover:bg-slate-700/50"
                         }`}
                     >
                       📦 กลับบ้าน
@@ -810,11 +810,11 @@ export default function VoiceOrderPage() {
 
         {/* Checkout Footer */}
         {cart.length > 0 && (
-          <div className="p-4 md:p-8 bg-[#1e293b] border-t border-gray-700/50 shadow-[0_-10px_40px_rgba(0,0,0,0.3)] z-10 shrink-0">
+          <div className="p-4 md:p-8 glass border-t border-white/10 shadow-[0_-10px_40px_rgba(0,0,0,0.4)] z-10 shrink-0 glow-border-top">
             <div className="flex justify-between items-end mb-3 md:mb-6">
               <span className="text-gray-400 text-sm md:text-base">ยอดรวมทั้งสิ้น</span>
               <div className="text-right">
-                <span className="text-3xl md:text-4xl font-bold text-white">{getCartTotal()}</span>
+                <span className="text-3xl md:text-4xl font-bold gradient-text-orange">{getCartTotal()}</span>
                 <span className="text-gray-400 ml-2 text-sm md:text-base">THB</span>
               </div>
             </div>
@@ -822,14 +822,14 @@ export default function VoiceOrderPage() {
             <div className="grid grid-cols-4 gap-4 md:gap-5">
               <button
                 onClick={() => { setCart([]); resetToIdle(); }}
-                className="col-span-1 h-14 md:h-16 rounded-2xl bg-slate-800 hover:bg-slate-700 text-gray-400 font-bold border border-slate-700 active:scale-95 transition-transform text-base md:text-lg"
+                className="col-span-1 h-14 md:h-16 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-gray-400 font-bold border border-slate-700/50 active:scale-95 transition-all text-base md:text-lg hover:border-gray-600"
               >
                 ล้าง
               </button>
               <button
                 onClick={confirmOrder}
                 disabled={appState === "processing"}
-                className="col-span-3 h-14 md:h-16 rounded-2xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white text-xl md:text-2xl font-bold shadow-lg shadow-orange-500/20 transform active:scale-95 transition-all"
+                className="col-span-3 h-14 md:h-16 rounded-2xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white text-xl md:text-2xl font-bold shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transform active:scale-95 transition-all"
               >
                 ยืนยันรายการ
               </button>
