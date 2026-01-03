@@ -45,6 +45,7 @@ export default function VoiceOrderPage() {
   const [noteMode, setNoteMode] = useState<number>(-1); // -1 = order mode, >= 0 = adding note to cart item at index
   const [suggestions, setSuggestions] = useState<string[]>([]); // Suggestions for failed orders
   const [showValidationModal, setShowValidationModal] = useState<boolean>(false); // Modal for validation errors
+  const [expandedIndex, setExpandedIndex] = useState<number>(-1); // Accordion: which cart item is expanded (-1 = none)
 
   // Audio recording refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -150,7 +151,21 @@ export default function VoiceOrderPage() {
         // ADD to cart instead of replacing
         const newItem = data.items[0];
         console.log("[DEBUG] Adding to cart:", newItem.menu_name);
-        setCart(prevCart => [...prevCart, newItem]);
+        setCart(prevCart => {
+          const newCart = [...prevCart, newItem];
+          // Auto-expand the new item (last index)
+          setExpandedIndex(newCart.length - 1);
+
+          // Auto-scroll to the new item after DOM updates
+          setTimeout(() => {
+            const newItemElement = document.getElementById(`cart-item-${newCart.length - 1}`);
+            if (newItemElement) {
+              newItemElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }, 100);
+
+          return newCart;
+        });
         setOrderData(data);
         // STAY ON IDLE to allow continuous ordering (Cart is visible on right)
         setAppState("idle");
@@ -674,134 +689,153 @@ export default function VoiceOrderPage() {
             </div>
           ) : (
             cart.map((item, index) => (
-              <div key={index} className="glass-dark rounded-2xl p-4 md:p-5 border border-white/5 relative group card-hover">
-                <div className="flex justify-between items-start mb-2 md:mb-4 pr-0">
-                  <div className="flex items-start gap-3 md:gap-4">
+              <div key={index} id={`cart-item-${index}`} className={`glass-dark rounded-2xl border border-white/5 relative group animate-slide-in overflow-hidden ${expandedIndex === index ? 'ring-2 ring-orange-500/30' : ''}`}>
+                {/* Accordion Header - Always Visible, Clickable */}
+                <div
+                  onClick={() => setExpandedIndex(expandedIndex === index ? -1 : index)}
+                  className="accordion-header p-4 md:p-5 cursor-pointer flex justify-between items-center"
+                >
+                  <div className="flex items-center gap-3 md:gap-4 flex-1">
                     <div className="bg-slate-700/50 w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-lg text-gray-400 font-mono text-base md:text-lg font-bold shrink-0">
                       {index + 1}
                     </div>
-                    <div>
-                      <h3 className="text-xl md:text-2xl font-bold text-white leading-tight">{item.menu_name}</h3>
-                      {item.price && <p className="text-orange-400 text-base md:text-lg font-medium mt-1">{item.price} ฿ / ที่</p>}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg md:text-xl font-bold text-white leading-tight truncate">{item.menu_name}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-orange-400 text-sm md:text-base font-medium">{item.price}฿</span>
+                        <span className="text-gray-500">×</span>
+                        <span className="text-white font-bold">{item.quantity}</span>
+                        {item.dineOption && (
+                          <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${item.dineOption === 'dine-in' ? 'bg-blue-500/20 text-blue-400' : 'bg-green-500/20 text-green-400'}`}>
+                            {item.dineOption === 'dine-in' ? '🍽️' : '📦'}
+                          </span>
+                        )}
+                        {item.note && <span className="text-yellow-400 text-xs ml-2 truncate max-w-[100px]">📝 {item.note}</span>}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right shrink-0 ml-2">
-                    <p className="text-2xl md:text-3xl font-bold text-white">{(item.price || 0) * item.quantity}</p>
-                    <p className="text-xs md:text-sm text-gray-500">บาท</p>
+                  <div className="flex items-center gap-3">
+                    <p className="text-xl md:text-2xl font-bold text-white">{(item.price || 0) * item.quantity}<span className="text-gray-500 text-sm ml-1">฿</span></p>
+                    <svg className={`accordion-chevron w-5 h-5 text-gray-400 ${expandedIndex === index ? 'expanded' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
                   </div>
                 </div>
 
-                {/* Add-ons & Quantity Controls */}
-                <div className="mt-2 md:mt-4 pt-2 md:pt-4 border-t border-gray-800 flex flex-wrap gap-3 md:gap-4 items-end justify-between">
-                  {/* Add-ons */}
-                  <div className="flex flex-wrap gap-2 flex-1">
-                    {item.add_ons && item.add_ons.map((addon, aIdx) => (
+                {/* Accordion Content - Collapsible */}
+                <div className={`accordion-content px-4 md:px-5 ${expandedIndex === index ? 'expanded pb-4 md:pb-5' : 'collapsed'}`}>
+                  {/* Add-ons & Quantity Controls */}
+                  <div className="pt-2 md:pt-4 border-t border-gray-800 flex flex-wrap gap-3 md:gap-4 items-end justify-between">
+                    {/* Add-ons */}
+                    <div className="flex flex-wrap gap-2 flex-1">
+                      {item.add_ons && item.add_ons.map((addon, aIdx) => (
+                        <button
+                          key={aIdx}
+                          onClick={() => {
+                            const newAddOns = [...item.add_ons];
+                            newAddOns[aIdx] = { ...addon, selected: !addon.selected };
+                            // Recalculate Logic
+                            const basePrice = (item.price || 0) - item.add_ons.filter(a => a.selected).reduce((sum, a) => sum + a.price, 0);
+                            const newPrice = basePrice + newAddOns.filter(a => a.selected).reduce((sum, a) => sum + a.price, 0);
+                            updateCartItem(index, { ...item, add_ons: newAddOns, price: newPrice });
+                          }}
+                          className={`px-4 py-2 md:px-5 md:py-3 rounded-xl text-sm md:text-base font-bold transition-all border-2 ${addon.selected
+                            ? "bg-green-500/20 text-green-400 border-green-500"
+                            : "bg-slate-800 text-gray-400 border-slate-700 hover:border-gray-500 hover:bg-slate-700"
+                            }`}
+                        >
+                          {addon.selected ? "✓ " : "+ "}{addon.name}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Dine-in / Takeaway Selection */}
+                    <div className="flex items-center gap-2">
                       <button
-                        key={aIdx}
-                        onClick={() => {
-                          const newAddOns = [...item.add_ons];
-                          newAddOns[aIdx] = { ...addon, selected: !addon.selected };
-                          // Recalculate Logic
-                          const basePrice = (item.price || 0) - item.add_ons.filter(a => a.selected).reduce((sum, a) => sum + a.price, 0);
-                          const newPrice = basePrice + newAddOns.filter(a => a.selected).reduce((sum, a) => sum + a.price, 0);
-                          updateCartItem(index, { ...item, add_ons: newAddOns, price: newPrice });
-                        }}
-                        className={`px-4 py-2 md:px-5 md:py-3 rounded-xl text-sm md:text-base font-bold transition-all border-2 ${addon.selected
-                          ? "bg-green-500/20 text-green-400 border-green-500"
-                          : "bg-slate-800 text-gray-400 border-slate-700 hover:border-gray-500 hover:bg-slate-700"
+                        onClick={() => updateCartItem(index, { ...item, dineOption: "dine-in" })}
+                        className={`h-12 px-3 md:h-14 md:px-4 rounded-xl text-sm md:text-base font-bold transition-all border-2 flex items-center gap-1 ${item.dineOption === "dine-in"
+                          ? "bg-blue-500/20 text-blue-400 border-blue-500 glow-blue"
+                          : !item.dineOption
+                            ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/50 animate-pulse"
+                            : "bg-slate-800/50 text-gray-400 border-slate-700 hover:border-gray-500 hover:bg-slate-700/50"
                           }`}
                       >
-                        {addon.selected ? "✓ " : "+ "}{addon.name}
+                        🍽️ ทานที่ร้าน
                       </button>
-                    ))}
+                      <button
+                        onClick={() => updateCartItem(index, { ...item, dineOption: "takeaway" })}
+                        className={`h-12 px-3 md:h-14 md:px-4 rounded-xl text-sm md:text-base font-bold transition-all border-2 flex items-center gap-1 ${item.dineOption === "takeaway"
+                          ? "bg-green-500/20 text-green-400 border-green-500 glow-green"
+                          : !item.dineOption
+                            ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/50 animate-pulse"
+                            : "bg-slate-800/50 text-gray-400 border-slate-700 hover:border-gray-500 hover:bg-slate-700/50"
+                          }`}
+                      >
+                        📦 กลับบ้าน
+                      </button>
+                    </div>
+
+                    {/* Quantity Stepper & Delete */}
+                    <div className="flex items-center gap-2 md:gap-3">
+                      {/* Delete Button */}
+                      <button
+                        onClick={() => deleteFromCart(index)}
+                        className="h-12 w-16 md:h-16 md:w-24 rounded-xl bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500 hover:text-white text-lg md:text-2xl font-bold transition-all active:scale-95 flex items-center justify-center"
+                      >
+                        ลบ
+                      </button>
+
+                      <div className="flex items-center gap-1 md:gap-2 bg-slate-800 rounded-xl p-1 md:p-1.5 border border-slate-700">
+                        <button
+                          onClick={() => {
+                            if (item.quantity > 1) updateCartItem(index, { ...item, quantity: item.quantity - 1 });
+                            else deleteFromCart(index);
+                          }}
+                          className="w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-colors active:bg-slate-500"
+                        >
+                          <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
+                        </button>
+                        <span className="w-10 md:w-14 text-center text-xl md:text-2xl font-bold text-white">{item.quantity}</span>
+                        <button
+                          onClick={() => updateCartItem(index, { ...item, quantity: item.quantity + 1 })}
+                          className="w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-colors active:bg-slate-500"
+                        >
+                          <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Dine-in / Takeaway Selection */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => updateCartItem(index, { ...item, dineOption: "dine-in" })}
-                      className={`h-12 px-3 md:h-14 md:px-4 rounded-xl text-sm md:text-base font-bold transition-all border-2 flex items-center gap-1 ${item.dineOption === "dine-in"
-                        ? "bg-blue-500/20 text-blue-400 border-blue-500 glow-blue"
-                        : !item.dineOption
-                          ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/50 animate-pulse"
-                          : "bg-slate-800/50 text-gray-400 border-slate-700 hover:border-gray-500 hover:bg-slate-700/50"
-                        }`}
-                    >
-                      🍽️ ทานที่ร้าน
-                    </button>
-                    <button
-                      onClick={() => updateCartItem(index, { ...item, dineOption: "takeaway" })}
-                      className={`h-12 px-3 md:h-14 md:px-4 rounded-xl text-sm md:text-base font-bold transition-all border-2 flex items-center gap-1 ${item.dineOption === "takeaway"
-                        ? "bg-green-500/20 text-green-400 border-green-500 glow-green"
-                        : !item.dineOption
-                          ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/50 animate-pulse"
-                          : "bg-slate-800/50 text-gray-400 border-slate-700 hover:border-gray-500 hover:bg-slate-700/50"
-                        }`}
-                    >
-                      📦 กลับบ้าน
-                    </button>
-                  </div>
-
-                  {/* Quantity Stepper & Delete */}
-                  <div className="flex items-center gap-2 md:gap-3">
-                    {/* Delete Button */}
-                    <button
-                      onClick={() => deleteFromCart(index)}
-                      className="h-12 w-16 md:h-16 md:w-24 rounded-xl bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500 hover:text-white text-lg md:text-2xl font-bold transition-all active:scale-95 flex items-center justify-center"
-                    >
-                      ลบ
-                    </button>
-
-                    <div className="flex items-center gap-1 md:gap-2 bg-slate-800 rounded-xl p-1 md:p-1.5 border border-slate-700">
+                  {/* Note Section */}
+                  <div className="mt-4 pt-4 border-t border-gray-800">
+                    {item.note ? (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xl md:text-2xl">📝</span>
+                          <span className="text-yellow-400 text-lg md:text-xl">{item.note}</span>
+                        </div>
+                        <button
+                          onClick={() => { setNoteMode(index); }}
+                          className="px-4 py-2 bg-slate-800 rounded-lg text-sm md:text-base text-gray-300 hover:text-white hover:bg-slate-700 transition-colors"
+                        >
+                          แก้ไข
+                        </button>
+                      </div>
+                    ) : (
                       <button
                         onClick={() => {
-                          if (item.quantity > 1) updateCartItem(index, { ...item, quantity: item.quantity - 1 });
-                          else deleteFromCart(index);
+                          setNoteMode(index);
+                          // Small timeout to allow state update and then start recording
+                          setTimeout(() => startRecording(), 50);
                         }}
-                        className="w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-colors active:bg-slate-500"
+                        className="w-full py-4 text-lg md:text-xl text-gray-300 hover:text-orange-400 bg-slate-800/50 hover:bg-orange-500/10 border-2 border-dashed border-gray-700 hover:border-orange-500/50 rounded-xl transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
                       >
-                        <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
+                        <span className="text-orange-500 text-2xl">🎤</span>
+                        <span className="font-bold">เพิ่มรายละเอียด</span>
+                        <span className="text-base text-gray-500 font-normal">(พูดได้เลย เช่น ไม่เผ็ด, ใส่กล่อง, เลือกเส้น)</span>
                       </button>
-                      <span className="w-10 md:w-14 text-center text-xl md:text-2xl font-bold text-white">{item.quantity}</span>
-                      <button
-                        onClick={() => updateCartItem(index, { ...item, quantity: item.quantity + 1 })}
-                        className="w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-colors active:bg-slate-500"
-                      >
-                        <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                      </button>
-                    </div>
+                    )}
                   </div>
-                </div>
-
-                {/* Note Section */}
-                <div className="mt-4 pt-4 border-t border-gray-800">
-                  {item.note ? (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xl md:text-2xl">📝</span>
-                        <span className="text-yellow-400 text-lg md:text-xl">{item.note}</span>
-                      </div>
-                      <button
-                        onClick={() => { setNoteMode(index); }}
-                        className="px-4 py-2 bg-slate-800 rounded-lg text-sm md:text-base text-gray-300 hover:text-white hover:bg-slate-700 transition-colors"
-                      >
-                        แก้ไข
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        setNoteMode(index);
-                        // Small timeout to allow state update and then start recording
-                        setTimeout(() => startRecording(), 50);
-                      }}
-                      className="w-full py-4 text-lg md:text-xl text-gray-300 hover:text-orange-400 bg-slate-800/50 hover:bg-orange-500/10 border-2 border-dashed border-gray-700 hover:border-orange-500/50 rounded-xl transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
-                    >
-                      <span className="text-orange-500 text-2xl">🎤</span>
-                      <span className="font-bold">เพิ่มรายละเอียด</span>
-                      <span className="text-base text-gray-500 font-normal">(พูดได้เลย เช่น ไม่เผ็ด, ใส่กล่อง, เลือกเส้น)</span>
-                    </button>
-                  )}
                 </div>
               </div>
             ))
