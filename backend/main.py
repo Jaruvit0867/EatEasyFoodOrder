@@ -680,15 +680,19 @@ def get_suggestions(transcript: str, limit: int = 10) -> list[str]:
 
 def check_sold_out(transcript: str) -> Optional[str]:
     """Check if the order matches any inactive (sold-out) menu item.
-    Returns the item name if sold out, None otherwise."""
+    Only returns sold-out if inactive item has HIGHER score than any active item.
+    This prevents false positives like 'กระเพราหมูกรอบหมด' when ordering 'กระเพราหมู'."""
     clean_text = transcript.replace("เอา", "").replace("ขอ", "").strip()
     
     inactive_items = MENU_CACHE.get("inactive_items", [])
+    active_items = MENU_CACHE.get("items", [])
+    
     if not inactive_items:
         return None
     
-    best_score = 0
-    best_match = None
+    # Calculate best score for INACTIVE items
+    best_inactive_score = 0
+    best_inactive_match = None
     
     for item in inactive_items:
         score = 0
@@ -697,13 +701,31 @@ def check_sold_out(transcript: str) -> Optional[str]:
             if keyword and keyword in clean_text:
                 score += len(keyword)
         
-        if score > best_score:
-            best_score = score
-            best_match = item
+        if score > best_inactive_score:
+            best_inactive_score = score
+            best_inactive_match = item
     
-    # Only return if we have a clear match (score > 0)
-    if best_match and best_score > 0:
-        return best_match["name"]
+    # No inactive match at all
+    if not best_inactive_match or best_inactive_score == 0:
+        return None
+    
+    # Calculate best score for ACTIVE items
+    best_active_score = 0
+    
+    for item in active_items:
+        score = 0
+        for keyword in item["keywords"]:
+            keyword = keyword.strip()
+            if keyword and keyword in clean_text:
+                score += len(keyword)
+        
+        if score > best_active_score:
+            best_active_score = score
+    
+    # Only return sold-out if inactive score is STRICTLY HIGHER than active score
+    # This means user is specifically ordering the sold-out item, not a similar one
+    if best_inactive_score > best_active_score:
+        return best_inactive_match["name"]
     
     return None
 
