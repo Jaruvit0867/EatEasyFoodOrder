@@ -228,14 +228,22 @@ def reload_menu_cache():
     
     conn = get_db_connection()
     cursor = conn.cursor()
+    
+    # Load active items
     cursor.execute("SELECT * FROM menu_items WHERE is_active = 1")
-    rows = cursor.fetchall()
+    active_rows = cursor.fetchall()
+    
+    # Load inactive items (for sold-out detection)
+    cursor.execute("SELECT * FROM menu_items WHERE is_active = 0")
+    inactive_rows = cursor.fetchall()
+    
     conn.close()
     
     items = []
+    inactive_items = []
     keywords_map = {}
     
-    for row in rows:
+    for row in active_rows:
         item = {
             "id": row["id"],
             "name": row["name"],
@@ -253,13 +261,23 @@ def reload_menu_cache():
                     keywords_map[keyword] = []
                 keywords_map[keyword].append(item)
     
+    # Process inactive items for sold-out detection
+    for row in inactive_rows:
+        item = {
+            "id": row["id"],
+            "name": row["name"],
+            "keywords": row["keywords"].split(","),
+            "base_price": row["base_price"],
+            "category": row["category"]
+        }
+        inactive_items.append(item)
+    
     MENU_CACHE["items"] = items
     MENU_CACHE["keywords_map"] = keywords_map
-    MENU_CACHE["items"] = items
-    MENU_CACHE["keywords_map"] = keywords_map
+    MENU_CACHE["inactive_items"] = inactive_items  # Store inactive items for sold-out check
     MENU_CACHE["last_updated"] = datetime.now(THAI_TZ)
     
-    print(f"Menu cache loaded: {len(items)} items, {len(keywords_map)} keywords")
+    print(f"Menu cache loaded: {len(items)} active, {len(inactive_items)} inactive items")
 
 # ============ Order Database Functions ============
 def save_order_to_db(items: list[OrderItem], total_price: int) -> int:
@@ -660,6 +678,36 @@ def get_suggestions(transcript: str, limit: int = 10) -> list[str]:
     return suggestions[:limit]
 
 
+def check_sold_out(transcript: str) -> Optional[str]:
+    """Check if the order matches any inactive (sold-out) menu item.
+    Returns the item name if sold out, None otherwise."""
+    clean_text = transcript.replace("เอา", "").replace("ขอ", "").strip()
+    
+    inactive_items = MENU_CACHE.get("inactive_items", [])
+    if not inactive_items:
+        return None
+    
+    best_score = 0
+    best_match = None
+    
+    for item in inactive_items:
+        score = 0
+        for keyword in item["keywords"]:
+            keyword = keyword.strip()
+            if keyword and keyword in clean_text:
+                score += len(keyword)
+        
+        if score > best_score:
+            best_score = score
+            best_match = item
+    
+    # Only return if we have a clear match (score > 0)
+    if best_match and best_score > 0:
+        return best_match["name"]
+    
+    return None
+
+
 # ============ FastAPI App ============
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -705,6 +753,17 @@ async def process_text_order(request: TextOrderRequest):
         
         if not transcript:
             return OrderResponse(success=False, error="ไม่มีข้อความที่จะประมวลผล")
+        
+        # Check for sold-out items FIRST
+        sold_out_item = check_sold_out(transcript)
+        if sold_out_item:
+            print(f"Item sold out: {sold_out_item}")
+            return OrderResponse(
+                success=False,
+                transcript=transcript,
+                error=f"❌ {sold_out_item} หมดแล้วครับ",
+                suggestions=[]  # Don't suggest alternatives for sold-out items
+            )
         
         item = process_order(transcript)
         print(f"Found item: {item.menu_name if item else 'None'}")
