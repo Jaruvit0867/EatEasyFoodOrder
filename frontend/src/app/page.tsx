@@ -15,7 +15,7 @@ interface OrderItem {
   note: string | null;
   price: number | null;
   add_ons: AddOn[];
-  dineOption?: "dine-in" | "takeaway"; // ทานที่ร้าน หรือ ใส่กล่องกลับบ้าน
+  dineOption?: "dine-in" | "takeaway"; // (Legacy) Still kept for type compatibility if needed, but logic moves to global
 }
 
 interface OrderResponse {
@@ -44,7 +44,8 @@ export default function VoiceOrderPage() {
   const [recordingTime, setRecordingTime] = useState<number>(0); // Recording duration
   const [noteMode, setNoteMode] = useState<number>(-1); // -1 = order mode, >= 0 = adding note to cart item at index
   const [suggestions, setSuggestions] = useState<string[]>([]); // Suggestions for failed orders
-  const [showValidationModal, setShowValidationModal] = useState<boolean>(false); // Modal for validation errors
+  const [showValidationModal, setShowValidationModal] = useState<boolean>(false); // Modal for empty cart validation
+  const [showOrderTypeModal, setShowOrderTypeModal] = useState<boolean>(false); // Modal for Eat-in/Takeaway selection
   const [expandedIndex, setExpandedIndex] = useState<number>(-1); // Accordion: which cart item is expanded (-1 = none)
 
   // Audio recording refs
@@ -417,32 +418,32 @@ export default function VoiceOrderPage() {
   // Lock mechanism for double submit prevention
   const isSubmittingRef = useRef(false);
 
-  // Confirm order
+  // Confirm order (Step 1: Open Modal)
   const confirmOrder = async () => {
     // Check both React state AND the Ref lock
     if (cart.length === 0 || appState === "processing" || isSubmittingRef.current) return;
 
-    // Validate: All items must have dineOption selected
-    const missingDineOption = cart.some(item => !item.dineOption);
-    if (missingDineOption) {
-      setShowValidationModal(true);
-      return;
-    }
+    // Show Modal to ask for Dine-in or Takeaway
+    setShowOrderTypeModal(true);
+  };
 
-    // Immediately lock
+  // Final Order Submission (called from Modal)
+  const submitOrder = async (dineOption: "dine-in" | "takeaway") => {
+    if (isSubmittingRef.current) return;
     isSubmittingRef.current = true;
+    setShowOrderTypeModal(false); // Close modal
     setAppState("processing");
 
     try {
-      // Prepare items: append "ใส่กล่องกลับบ้าน" to note for takeaway items
+      // Prepare items: append "ใส่กล่องกลับบ้าน" to note for ALL items if takeaway
       const itemsToSend = cart.map(item => {
-        if (item.dineOption === "takeaway") {
+        if (dineOption === "takeaway") {
           const existingNote = item.note ? item.note.trim() : "";
           const takeawayNote = "ใส่กล่องกลับบ้าน";
           const newNote = existingNote ? `${existingNote}, ${takeawayNote}` : takeawayNote;
-          return { ...item, note: newNote };
+          return { ...item, note: newNote, dineOption: "takeaway" };
         }
-        return item;
+        return { ...item, dineOption: "dine-in" };
       });
 
       const response = await fetch(`${BACKEND_URL}/confirm-order`, {
@@ -749,64 +750,28 @@ export default function VoiceOrderPage() {
                       ))}
                     </div>
 
-                    {/* Dine-in / Takeaway Selection */}
-                    <div className="flex items-center gap-2">
+                    {/* Quantity Stepper */}
+                    <div className="flex items-center gap-1 md:gap-2 bg-slate-800 rounded-xl p-1 md:p-1.5 border border-slate-700">
                       <button
-                        onClick={() => updateCartItem(index, { ...item, dineOption: "dine-in" })}
-                        className={`h-12 px-3 md:h-14 md:px-4 rounded-xl text-sm md:text-base font-bold transition-all border-2 flex items-center gap-1 ${item.dineOption === "dine-in"
-                          ? "bg-blue-500/20 text-blue-400 border-blue-500 glow-blue"
-                          : !item.dineOption
-                            ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/50 animate-pulse"
-                            : "bg-slate-800/50 text-gray-400 border-slate-700 hover:border-gray-500 hover:bg-slate-700/50"
-                          }`}
+                        onClick={() => {
+                          if (item.quantity > 1) updateCartItem(index, { ...item, quantity: item.quantity - 1 });
+                          else deleteFromCart(index);
+                        }}
+                        className="w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-colors active:bg-slate-500"
                       >
-                        🍽️ ทานที่ร้าน
+                        <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
                       </button>
+                      <span className="w-10 md:w-14 text-center text-xl md:text-2xl font-bold text-white">{item.quantity}</span>
                       <button
-                        onClick={() => updateCartItem(index, { ...item, dineOption: "takeaway" })}
-                        className={`h-12 px-3 md:h-14 md:px-4 rounded-xl text-sm md:text-base font-bold transition-all border-2 flex items-center gap-1 ${item.dineOption === "takeaway"
-                          ? "bg-green-500/20 text-green-400 border-green-500 glow-green"
-                          : !item.dineOption
-                            ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/50 animate-pulse"
-                            : "bg-slate-800/50 text-gray-400 border-slate-700 hover:border-gray-500 hover:bg-slate-700/50"
-                          }`}
+                        onClick={() => updateCartItem(index, { ...item, quantity: item.quantity + 1 })}
+                        className="w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-colors active:bg-slate-500"
                       >
-                        📦 กลับบ้าน
+                        <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                       </button>
-                    </div>
-
-                    {/* Quantity Stepper & Delete */}
-                    <div className="flex items-center gap-2 md:gap-3">
-                      {/* Delete Button */}
-                      <button
-                        onClick={() => deleteFromCart(index)}
-                        className="h-12 w-16 md:h-16 md:w-24 rounded-xl bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500 hover:text-white text-lg md:text-2xl font-bold transition-all active:scale-95 flex items-center justify-center"
-                      >
-                        ลบ
-                      </button>
-
-                      <div className="flex items-center gap-1 md:gap-2 bg-slate-800 rounded-xl p-1 md:p-1.5 border border-slate-700">
-                        <button
-                          onClick={() => {
-                            if (item.quantity > 1) updateCartItem(index, { ...item, quantity: item.quantity - 1 });
-                            else deleteFromCart(index);
-                          }}
-                          className="w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-colors active:bg-slate-500"
-                        >
-                          <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
-                        </button>
-                        <span className="w-10 md:w-14 text-center text-xl md:text-2xl font-bold text-white">{item.quantity}</span>
-                        <button
-                          onClick={() => updateCartItem(index, { ...item, quantity: item.quantity + 1 })}
-                          className="w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-colors active:bg-slate-500"
-                        >
-                          <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                        </button>
-                      </div>
                     </div>
                   </div>
 
-                  {/* Note Section */}
+                  {/* Note Section (Original Style) */}
                   <div className="mt-4 pt-4 border-t border-gray-800">
                     {item.note ? (
                       <div className="flex items-center justify-between">
@@ -880,21 +845,37 @@ export default function VoiceOrderPage() {
         />
       )}
 
-      {/* Validation Modal - Custom UI for missing dine option */}
-      {showValidationModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in">
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-6 md:p-8 max-w-md mx-4 shadow-2xl border border-slate-700/50 animate-scale-in">
+      {/* Order Type Selection Modal */}
+      {showOrderTypeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in p-4">
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-6 md:p-8 w-full max-w-lg shadow-2xl border border-slate-700/50 animate-scale-in transform transition-all">
             <div className="text-center">
-              <div className="text-5xl md:text-6xl mb-4">⚠️</div>
-              <h3 className="text-xl md:text-2xl font-bold text-white mb-3">กรุณาเลือกรูปแบบการรับอาหาร</h3>
-              <p className="text-gray-400 mb-6">
-                กดปุ่ม <span className="text-blue-400 font-bold">🍽️ ทานที่ร้าน</span> หรือ <span className="text-green-400 font-bold">📦 กลับบ้าน</span> ให้ครบทุกรายการก่อนยืนยัน
-              </p>
+              <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">ทานที่ร้าน หรือ กลับบ้าน?</h3>
+              <p className="text-gray-400 mb-8">กรุณาเลือกรูปแบบการรับอาหาร</p>
+
+              <div className="grid grid-cols-2 gap-4 md:gap-6">
+                <button
+                  onClick={() => submitOrder("dine-in")}
+                  className="group relative h-40 rounded-2xl bg-gradient-to-br from-blue-600/20 to-blue-800/20 hover:from-blue-600/40 hover:to-blue-800/40 border-2 border-blue-500/30 hover:border-blue-400 transition-all active:scale-[0.98] flex flex-col items-center justify-center gap-3"
+                >
+                  <span className="text-5xl md:text-6xl filter drop-shadow-lg group-hover:scale-110 transition-transform duration-300">🍽️</span>
+                  <span className="text-xl md:text-2xl font-bold text-blue-300 group-hover:text-white">ทานที่ร้าน</span>
+                </button>
+
+                <button
+                  onClick={() => submitOrder("takeaway")}
+                  className="group relative h-40 rounded-2xl bg-gradient-to-br from-orange-600/20 to-orange-800/20 hover:from-orange-600/40 hover:to-orange-800/40 border-2 border-orange-500/30 hover:border-orange-400 transition-all active:scale-[0.98] flex flex-col items-center justify-center gap-3"
+                >
+                  <span className="text-5xl md:text-6xl filter drop-shadow-lg group-hover:scale-110 transition-transform duration-300">🥡</span>
+                  <span className="text-xl md:text-2xl font-bold text-orange-300 group-hover:text-white">กลับบ้าน</span>
+                </button>
+              </div>
+
               <button
-                onClick={() => setShowValidationModal(false)}
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white text-lg md:text-xl font-bold shadow-lg shadow-orange-500/20 transition-all active:scale-95"
+                onClick={() => setShowOrderTypeModal(false)}
+                className="mt-8 text-gray-500 hover:text-white underline decoration-gray-600 hover:decoration-white transition-colors text-sm"
               >
-                เข้าใจแล้ว
+                ยกเลิก
               </button>
             </div>
           </div>

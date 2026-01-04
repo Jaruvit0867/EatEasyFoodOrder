@@ -19,6 +19,17 @@ if ! command -v npm &> /dev/null; then
     exit 1
 fi
 
+# Check for Ollama (AI)
+echo -e "\n${CYAN}🤖 Checking AI Engine (Ollama)...${NC}"
+if ! command -v ollama &> /dev/null; then
+    echo -e "${YELLOW}⚠️  Ollama is NOT installed.${NC}"
+    echo "   Please download from https://ollama.com to use AI features."
+else
+    echo "✅ Ollama found."
+    # Optional: Pull the model if not present (blocking, so maybe just warn)
+    echo -e "   Run: ${YELLOW}ollama pull qwen2.5:0.5b${NC} if you haven't already."
+fi
+
 # 1. Backend Setup
 echo -e "\n${GREEN}📦 Installing Backend Dependencies...${NC}"
 cd backend
