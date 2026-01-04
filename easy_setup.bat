@@ -76,6 +76,56 @@ if not exist "certificates\key.pem" (
     echo [INFO] Certificates already exist.
 )
 
+:: 4. AI Setup (Ollama)
+echo.
+echo [STEP 4] Setting up AI System (Ollama)...
+
+set "OLLAMA_EXE=%LOCALAPPDATA%\Programs\Ollama\ollama.exe"
+
+:: 1. Try global command
+call ollama --version >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [INFO] Ollama is installed globally.
+    set "OLLAMA_CMD=ollama"
+    goto :PullModel
+)
+
+:: 2. Try local file check
+if exist "%OLLAMA_EXE%" (
+    echo [INFO] Found Ollama at default location.
+    set "OLLAMA_CMD="%OLLAMA_EXE%""
+    goto :PullModel
+)
+
+:: 3. Install if missing
+echo [INFO] Ollama not found. Installing via Winget...
+winget install -e --id Ollama.Ollama --accept-source-agreements --accept-package-agreements >nul 2>&1
+
+:: 4. Verify install
+if exist "%OLLAMA_EXE%" (
+    echo [OK] Ollama installed successfully.
+    set "OLLAMA_CMD="%OLLAMA_EXE%""
+    goto :PullModel
+)
+
+echo [ERROR] Automatic install failed. Opening download page...
+start https://ollama.com/download/OllamaSetup.exe
+echo [IMPORTANT] Please install Ollama from the installer.
+echo Then restart this script.
+pause
+exit /b 1
+
+:PullModel
+echo [INFO] Pulling Qwen2.5 Model...
+echo [INFO] Command: %OLLAMA_CMD% pull qwen2.5:1.5b
+call %OLLAMA_CMD% pull qwen2.5:1.5b
+if %errorlevel% neq 0 (
+    echo [WARNING] Could not pull model. Make sure Ollama app is running!
+    echo Try opening 'Ollama' from your Start Menu, then run this again.
+) else (
+    echo [OK] AI Model Ready.
+)
+
 echo.
 echo ==========================================
 echo [SUCCESS] Setup Complete!
