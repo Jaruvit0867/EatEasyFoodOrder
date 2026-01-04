@@ -3,6 +3,8 @@
 ## 📦 Project Overview
 Voice-controlled food ordering system for Thai rice & curry restaurants. Customers order by speaking, staff sees orders on kitchen display.
 
+**Last Updated:** January 5, 2026
+
 ---
 
 ## 🏗️ Architecture
@@ -27,7 +29,15 @@ Voice-controlled food ordering system for Thai rice & curry restaurants. Custome
 │  │ Voice Order │  │    Menu     │  │     Analytics       │  │
 │  │  Processing │  │  Management │  │     & Orders        │  │
 │  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────┘  │
-│         └────────────────┴─────────────────────┘             │
+│         │                │                     │             │
+│         ├────────────────┴─────────────────────┘             │
+│         │                                                    │
+│         ▼                                                    │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │              Two-Stage Verification                  │    │
+│  │  Stage 1: Keyword + Protein Matching                 │    │
+│  │  Stage 2: LLM Verification (Ollama - Optional)       │    │
+│  └─────────────────────────────────────────────────────┘    │
 │                          │                                   │
 │                     MENU_CACHE (In-Memory)                   │
 │                     + SQLite Database                        │
@@ -36,13 +46,13 @@ Voice-controlled food ordering system for Thai rice & curry restaurants. Custome
 
 ---
 
-## 🎨 Frontend (Next.js 15 + React 19)
+## 🎨 Frontend (Next.js 16 + React 19)
 
 ### Tech Stack
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| Next.js | 15.x | React framework with App Router |
-| React | 19.x | UI library |
+| Next.js | 16.1.1 | React framework with App Router |
+| React | 19.2.3 | UI library |
 | TypeScript | 5.x | Type safety |
 | Tailwind CSS | 4.x | Utility-first styling |
 | Web Speech API | Native | Voice recognition (browser) |
@@ -51,7 +61,7 @@ Voice-controlled food ordering system for Thai rice & curry restaurants. Custome
 ```
 frontend/
 ├── src/app/
-│   ├── page.tsx          # Main order page (voice UI)
+│   ├── page.tsx          # Main order page (voice UI) ~55KB
 │   ├── kitchen/page.tsx  # Kitchen display
 │   ├── dashboard/page.tsx # Admin dashboard
 │   ├── layout.tsx        # Root layout + fonts
@@ -62,7 +72,7 @@ frontend/
 
 ### Voice Input Flow
 ```
-User speaks → Web Speech API → Transcript → POST /api/process-text-order → Cart Update
+User speaks → Web Speech API → Transcript → POST /api/process-text-order → Two-Stage Verification → Cart Update
 ```
 
 ### Key Features
@@ -71,6 +81,7 @@ User speaks → Web Speech API → Transcript → POST /api/process-text-order �
 - **Glassmorphism UI**: Premium frosted glass effects
 - **Glow Animations**: Mic button pulse, selection glow
 - **Dine-in/Takeaway**: Selection per item with validation
+- **Smart Suggestions**: Menu suggestions when voice is ambiguous
 
 ### Custom CSS Classes (globals.css)
 ```css
@@ -91,32 +102,93 @@ User speaks → Web Speech API → Transcript → POST /api/process-text-order �
 ### Tech Stack
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| FastAPI | 0.100+ | REST API framework |
+| FastAPI | 0.109.0 | REST API framework |
 | Python | 3.11+ | Backend language |
 | SQLite | 3.x | Database |
-| Uvicorn | Latest | ASGI server |
+| Uvicorn | 0.27.0 | ASGI server |
+| Pydantic | 2.x | Data validation |
+| Requests | 2.31+ | HTTP client (for Ollama) |
 
-### Key File
+### Key Files
 ```
 backend/
-├── main.py              # All API logic in single file
-└── orders.db            # SQLite database (auto-created)
+├── main.py              # All API logic (~1300 lines)
+├── requirements.txt     # Python dependencies
+├── orders.sqlite        # SQLite database (auto-created)
+└── test_cases.py        # Test cases
 ```
 
 ### API Endpoints
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| GET | `/` | Health check |
 | POST | `/process-text-order` | Process voice transcript → menu item |
 | POST | `/confirm-order` | Save order to database |
 | GET | `/orders` | List all orders |
 | GET | `/orders/pending` | Kitchen display orders |
-| PUT | `/orders/{id}/status` | Update order status |
+| POST | `/orders/{id}/complete` | Mark order as completed |
+| POST | `/orders/{id}/cancel` | Cancel order |
+| DELETE | `/orders` | Complete all pending orders |
 | GET/POST/PUT/DELETE | `/menu-items` | Menu CRUD |
-| GET | `/analytics/*` | Stats, top items, daily sales |
+| POST | `/menu-cache/reload` | Reload menu cache |
+| GET | `/analytics/summary` | Sales summary stats |
+| GET | `/analytics/top-items` | Top selling items |
+| GET | `/analytics/daily-sales` | Daily sales data |
+| GET | `/analytics/order-stats` | Order status statistics |
+| GET | `/addons` | Get available add-ons |
 
-### Core Functions
+---
 
-#### 1. Menu Cache (In-Memory)
+## 🧠 Two-Stage Verification System
+
+### Overview
+Advanced order processing with confidence scoring and optional LLM verification.
+
+### Stage 1: Keyword Matching with Confidence
+```python
+# Scoring System:
+# - Menu name in transcript: +50 points
+# - Each keyword match: +len(keyword)*2 points
+# - Protein match: +30 bonus
+# - Protein mismatch: score = 0
+
+# Confidence Levels:
+# 90+: Exact match → Auto-accept
+# 50-89: Partial match → LLM verify (if enabled)
+# 30-49: Low confidence → Show suggestions
+# <30: No match → LLM parse or suggestions
+```
+
+### Stage 2: LLM Verification (Optional)
+```python
+# Uses Ollama local LLM (default: llama3.2)
+OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_MODEL = "llama3.2"
+OLLAMA_TIMEOUT = 5  # seconds
+
+# LLM is used for:
+# 1. verify_match_with_llm() - Verify keyword match is correct
+# 2. ask_llm_to_parse() - Parse order when keyword fails
+```
+
+### Protein Keywords (Safety Layer)
+```python
+PROTEIN_KEYWORDS = [
+    "หมู", "ไก่", "เนื้อ", "กุ้ง", "ปลาหมึก", "ปู", "ปลา",  # Meats
+    "ทะเล", "หมูกรอบ", "หมูสับ", "หมูชิ้น"                    # Variants
+]
+```
+
+### Smart Fallback
+When LLM fails or is rejected by Safety Layer, the system falls back to:
+1. Keyword matching with exact menu name comparison
+2. Menu suggestions for ambiguous orders
+
+---
+
+## 💾 Menu Cache System
+
+### In-Memory Cache Structure
 ```python
 MENU_CACHE = {
     "items": [...],           # Active menu items
@@ -126,30 +198,55 @@ MENU_CACHE = {
 }
 ```
 
-#### 2. Order Processing Flow
-```
-Transcript → check_sold_out() → process_order() → OrderItem
-                 │                    │
-                 ▼                    ▼
-          "หมดแล้วครับ"        Match by keywords
-                              Score-based ranking
-```
+### Features
+- Auto-reload on menu changes
+- Sold-out item detection
+- Fast keyword lookup via `keywords_map`
 
-#### 3. Keyword Matching Algorithm
-```python
-for keyword in item["keywords"]:
-    if keyword in transcript:
-        score += len(keyword)  # Longer = better match
-```
+---
 
-### Database Schema
+## 📊 Database Schema
+
+### Tables
 ```sql
 -- menu_items
-id, name, keywords, base_price, category, is_active, created_at, updated_at
+CREATE TABLE menu_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    keywords TEXT NOT NULL,
+    base_price INTEGER NOT NULL,
+    category TEXT DEFAULT 'standard',
+    is_active BOOLEAN DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 -- orders
-id, items (JSON), total_price, status, created_at
+CREATE TABLE orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    items_json TEXT NOT NULL,
+    total_price INTEGER NOT NULL,
+    status TEXT DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 ```
+
+### Menu Categories
+| Category | Price Range | Examples |
+|----------|-------------|----------|
+| standard | 50 THB | ข้าวกะเพราหมู, ข้าวไข่เจียว |
+| premium | 60-70 THB | ข้าวกะเพราหมูกรอบ, ข้าวผัดเนื้อ |
+| special | 70-80 THB | ข้าวกะเพราปู, ข้าวกะเพรากุ้ง |
+| soup | 100-120 THB | ต้มยำกุ้ง, ต้มยำทะเล |
+| kapkhao | 70-80 THB | ผัดคะน้าหมูกรอบ (กับข้าว) |
+
+### Add-ons
+| Name | Price | Emoji |
+|------|-------|-------|
+| ไข่ดาว | 10 THB | 🍳 |
+| ไข่เจียว | 10 THB | 🥚 |
+| พิเศษ | 10 THB | ⭐ |
+| กับข้าว | -10 THB | 🍚 |
 
 ---
 
@@ -172,9 +269,13 @@ This solves:
 
 ## 🚀 Running the Project
 
-### Quick Start
+### Quick Start (Recommended)
 ```bash
+# macOS/Linux
 ./easy_run.sh    # Starts both frontend (3000) + backend (8000)
+
+# Windows
+easy_run.bat
 ```
 
 ### Manual Start
@@ -188,7 +289,16 @@ cd frontend && npm run dev
 
 ### HTTPS (for mobile mic access)
 ```bash
-cd frontend && npm run dev -- --experimental-https
+cd frontend && npm run dev:https
+```
+
+### First-time Setup
+```bash
+# macOS/Linux
+./easy_setup.sh
+
+# Windows
+easy_setup.bat
 ```
 
 ---
@@ -207,12 +317,15 @@ cd frontend && npm run dev -- --experimental-https
 
 ### Order Page
 - [x] Voice input (Web Speech API)
+- [x] Two-Stage Verification (Keyword + LLM)
 - [x] Auto-detect menu items from speech
+- [x] Protein validation (Safety Layer)
 - [x] Silence detection auto-stop
 - [x] Accordion cart with animations
 - [x] Dine-in/Takeaway selection
 - [x] Sold-out item detection
 - [x] Note per item (voice)
+- [x] Smart suggestions for ambiguous orders
 - [x] Validation modal (custom UI)
 
 ### Dashboard
@@ -230,21 +343,48 @@ cd frontend && npm run dev -- --experimental-https
 
 ---
 
-## 📄 Files Modified in This Session
+## � Environment
 
-### Frontend
-- `frontend/src/app/page.tsx` - Voice UI, accordion cart, validation
-- `frontend/src/app/globals.css` - Glassmorphism, animations
-- `frontend/src/app/dashboard/page.tsx` - Menu status toggle
-
-### Backend
-- `backend/main.py` - Sold-out detection, menu toggle fix
-
----
-
-## 🔧 Environment
-
-- **OS**: macOS
+- **OS**: macOS / Windows / Linux
 - **Node.js**: 18+
 - **Python**: 3.11+
 - **Browser**: Chrome (best for Web Speech API)
+- **Optional**: Ollama (for LLM verification)
+
+---
+
+## 📦 Dependencies
+
+### Frontend (package.json)
+```json
+{
+  "dependencies": {
+    "next": "16.1.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
+```
+
+### Backend (requirements.txt)
+```
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+pydantic>=2.0.0
+requests>=2.31.0
+```
+
+---
+
+## � Timezone
+
+All timestamps use **Thailand timezone (UTC+7)**:
+```python
+THAI_TZ = timezone(timedelta(hours=7))
+```
