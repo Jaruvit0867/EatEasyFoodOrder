@@ -608,253 +608,237 @@ def extract_proteins_from_text(text: str) -> List[str]:
     return found
 
 
-def score_menu_with_confidence(transcript: str, menu_items: list) -> Tuple[Optional[dict], int, List[dict]]:
+def extract_order_with_llm(transcript: str, menu_items: List[dict]) -> Optional[OrderItem]:
     """
-    Score menu items and return (best_match, confidence_score, top_candidates).
-    Confidence: 0-100
-    - 90+: Exact match or protein matches perfectly
-    - 50-89: Partial match, needs verification
-    - <50: Too ambiguous, show suggestions
+    Use LLM to extract menu item, quantity, addons, and notes strictly from the transcript.
+    Uses basic keyword scoring to pre-filter candidates (RAG) for the LLM context.
     """
-    clean_text = transcript.replace("เอา", "").replace("ขอ", "").replace("หน่อย", "").replace("ครับ", "").replace("ค่ะ", "").strip()
-    
-    # === Text Normalization: Handle common spelling variations ===
-    clean_text = clean_text.replace("กระเพราะ", "กะเพรา")  # Common typo
-    clean_text = clean_text.replace("กระเพรา", "กะเพรา")   # Alternative spelling
-    
-    user_proteins = extract_proteins_from_text(clean_text)
-    
-    # === Special Partial Match Rules ===
-    # Handle abbreviated/partial orders that customers commonly use
-    partial_match_rules = {
-        "ผัดผักบุ้ง": "ผัดผักบุ้งหมูราดข้าว",  # Short form → Full menu name
-        "ข้าวไข่เจียวหมูสับ": "ข้าวไข่เจียว",   # ข้าวไข่เจียว with หมูสับ as note
-    }
-    
-    for short_form, full_name in partial_match_rules.items():
-        # Only match if it's the EXACT short form, not part of a longer phrase
-        # e.g. "ผัดผักบุ้ง" matches but "ผัดผักบุ้งหมูกรอบ" should NOT match
-        if clean_text == short_form or transcript.strip() == short_form:
+    try:
+        # 1. Candidate Retrieval (Pre-filtering)
+        # Limit context to ~6 items. High precision required.
+        candidates = menu_items
+        if len(menu_items) > 6:
+            scored_candidates = []
+            clean_text = transcript.replace("เอา", "").replace("ขอ", "").replace("ผม", "").replace("ดิฉัน", "")
+            
             for item in menu_items:
-                if item["name"] == full_name:
-                    return item, 95, [{"item": item, "score": 95}]
-    
-    scored_items = []
-    
-    for item in menu_items:
-        score = 0
-        protein_match = True
-        
-        # 1. Check if menu name is substring of input or vice versa (high confidence)
-        if item["name"] in transcript or clean_text in item["name"]:
-            score += 50
-        
-        # 2. Keyword matching (bag of words, order doesn't matter)
-        item_keywords = item.get("keywords", [])
-        matched_keywords = 0
-        for keyword in item_keywords:
-            if keyword in clean_text:
-                score += len(keyword) * 2
-                matched_keywords += 1
-        
-        # 3. Protein validation (CRITICAL)
-        item_name = item["name"]
-        item_proteins = extract_proteins_from_text(item_name)
-        
-        if user_proteins:
-            # User specified a protein - item MUST have matching protein
-            if not any(p in item_proteins for p in user_proteins):
-                protein_match = False
-            # Check for conflicting proteins
-            for user_p in user_proteins:
-                for item_p in item_proteins:
-                    if user_p != item_p and user_p in PROTEIN_KEYWORDS[:7] and item_p in PROTEIN_KEYWORDS[:7]:
-                        # Conflicting proteins (หมู vs ไก่ etc.)
-                        protein_match = False
-        
-        if protein_match:
-            score += 30  # Bonus for matching protein
-        else:
-            score = 0  # Zero out score if protein doesn't match
-        
-        if score > 0:
-            scored_items.append({
-                "item": item,
-                "score": score,
-                "protein_match": protein_match,
-                "keywords_matched": matched_keywords
-            })
-    
-    # Sort by score descending, then by name length ascending (prefer shorter/more specific names)
-    scored_items.sort(key=lambda x: (-x["score"], len(x["item"]["name"])))
-    
-    if not scored_items:
-        return None, 0, []
-    
-    best = scored_items[0]
-    best_score = best["score"]
-    
-    # Calculate confidence
-    confidence = min(best_score, 100)
-    
-    # Check for ties (ambiguity)
-    if len(scored_items) > 1:
-        second_score = scored_items[1]["score"]
-        if second_score >= best_score * 0.9:  # Very close scores = ambiguous
-            confidence = min(confidence, 60)
-    
-    return best["item"], confidence, scored_items[:5]
+                score = 0
+                # Exact name substring match (Strong signal)
+                if item["name"] in clean_text:
+                    score += 50
+                
+                # Keyword overlap
+                item_keywords = item.get("keywords", [])
+                if isinstance(item_keywords, str):
+                    item_keywords = item_keywords.split(",")
+                    
+                for k in item_keywords:
+                    k = k.strip()
+                    if k and k in clean_text:
+                        score += 10
+                
+                scored_candidates.append((score, item))
+            
+            # Sort by score descending
+            scored_candidates.sort(key=lambda x: x[0], reverse=True)
+            
+            # Keep top 6
+            candidates = [x[1] for x in scored_candidates[:6]]
+            
+        print(f"[RAG] Selected {len(candidates)} candidates: {[c['name'] for c in candidates]}")
 
+        # 2. Build Prompt
+        menu_text = "\n".join([f"- {item['name']} ({item['base_price']}฿)" for item in candidates])
+        
+        addons_text = ", ".join([f"{name} ({info['price']}฿)" for name, info in ADD_ONS.items()])
+        
+        prompt = f"""You are an expert Thai food ordering AI assistant.
+Your task is to extract the order details based on the strict MENU and ADDONS provided.
 
-def verify_match_with_llm(user_text: str, candidate_item: dict) -> bool:
-    """Use LLM to verify if the candidate match is correct"""
-    try:
-        prompt = f"""ตรวจสอบว่าการจับคู่นี้ถูกต้องหรือไม่:
-ลูกค้าพูด: "{user_text}"
-ระบบเลือก: "{candidate_item['name']}"
+MENU:
+{menu_text}
 
-ตอบแค่ "ถูก" หรือ "ผิด" เท่านั้น"""
+ADDONS:
+{addons_text}
 
+INSTRUCTIONS:
+1. Find the best matching menu item. Only set "found": false if the input is gibberish or unrelated to food.
+2. Extract quantity (default 1).
+3. Identify valid add-ons from the ADDONS list.
+4. Extract any other details (spiciness, special instructions) as "note".
+5. Return JSON ONLY.
+
+Example:
+User: "เอาข้าวกะเพราหมู 1 ที่ ไข่ดาวด้วย"
+Response:
+{{
+  "found": true,
+  "menu_name": "ข้าวกะเพราหมู",
+  "quantity": 1,
+  "addons": ["ไข่ดาว"],
+  "note": "ไข่ดาวด้วย"
+}}
+
+User: "ข้าวกะเพราเนื้อ 2 จาน"
+Response:
+{{
+  "found": true,
+  "menu_name": "ข้าวกะเพราเนื้อ",
+  "quantity": 2,
+  "addons": [],
+  "note": ""
+}}
+
+User: "ข้าวกะเพราไก่ 1 ที่"
+Response:
+{{
+  "found": true,
+  "menu_name": "ข้าวกะเพราไก่",
+  "quantity": 1,
+  "addons": [],
+  "note": ""
+}}
+
+User: "ข้าวกะเพราหมึก"
+Response:
+{{
+  "found": true,
+  "menu_name": "ข้าวกะเพราหมึก",
+  "quantity": 1,
+  "addons": [],
+  "note": ""
+}}
+
+User: "{transcript}"
+Response:
+"""
         response = requests.post(
             OLLAMA_URL,
             json={
                 "model": OLLAMA_MODEL,
                 "prompt": prompt,
                 "stream": False,
-                "options": {"temperature": 0.1, "num_predict": 20}
+                "options": {"temperature": 0.1, "num_predict": 100},
+                # "format": "json"  <-- REMOVED to improve speed (7s -> 1.8s)
             },
-            timeout=OLLAMA_TIMEOUT
+            timeout=10
         )
         response.raise_for_status()
+        result_json = response.json().get("response", "")
+        print(f"[LLM] Raw response: {result_json}")
         
-        result = response.json().get("response", "").strip()
-        return "ถูก" in result
-    except Exception as e:
-        print(f"[LLM Verify Error] {e}")
-        return True  # On error, trust keyword matching
-
-
-def ask_llm_to_parse(user_text: str, menu_items: list) -> Optional[dict]:
-    """Use LLM to parse order when keyword matching fails"""
-    try:
-        # Build compact menu list
-        menu_lines = [f"{item['id']}|{item['name']}" for item in menu_items[:30]]  # Limit to 30 for speed
-        menu_str = "\n".join(menu_lines)
+        try:
+            data = json.loads(result_json)
+        except:
+             # Try to find JSON block if raw text
+            import re
+            match = re.search(r'\{.*\}', result_json, re.DOTALL)
+            if match:
+                data = json.loads(match.group())
+            else:
+                return None
+                
+        if not data.get("found"):
+            # We will handle fallback at the end if not found
+            pass
+            
+        target_name = data.get("menu_name", "").strip() # Strip whitespace
         
-        prompt = f"""คุณคือผู้ช่วยรับออเดอร์ร้านอาหาร
+        # === VALIDATION LAYER ===
+        # Prevent Hallucinations (e.g. Kai -> Kung)
+        # Rule: If result has a specific meat, that meat (or synonym) MUST be in transcript 
+        # OR transcript must NOT have a conflicting meat.
+        
+        MEAT_MAP = {
+            "กุ้ง": ["กุ้ง", "kung"],
+            "เนื้อ": ["เนื้อ", "nuea", "beef"],
+            "ไก่": ["ไก่", "kai", "chicken"],
+            "หมู": ["หมู", "moo", "pork"],
+            "หมึก": ["หมึก", "sqid", "pla muek"],
+            "ปู": ["ปู", "pu", "crab"],
+            "ปลา": ["ปลา", "pla", "fish"],
+            "ทะเล": ["ทะเล", "talay", "seafood"]
+        }
+        
+        is_valid = True
+        for meat, keywords in MEAT_MAP.items():
+            if meat in target_name:
+                # Check if transcript contains conflicting meat
+                has_meat_keyword = any(k in transcript.lower() for k in keywords)
+                if not has_meat_keyword:
+                    # Target meat NOT in transcript.
+                    # Check if ANY other meat is in transcript?
+                    for other_meat, other_keywords in MEAT_MAP.items():
+                        if other_meat == meat: continue
+                        if any(k in transcript.lower() for k in other_keywords):
+                            print(f"[Validation] REJECTED '{target_name}' (Input has '{other_meat}' not '{meat}')")
+                            is_valid = False
+                            break
+            if not is_valid: break
+            
+        if not is_valid:
+            print(f"[Validation] Result invalid. Trying fallback...")
+            data["found"] = False # Trigger fallback logic below
 
-เมนู:
-{menu_str}
-
-ลูกค้าสั่ง: "{user_text}"
-
-หาเมนูที่ตรงกับที่ลูกค้าสั่ง ตอบเป็น ID เท่านั้น (ตัวเลข)
-ถ้าไม่มีเมนูตรง ตอบ 0"""
-
-        response = requests.post(
-            OLLAMA_URL,
-            json={
-                "model": OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "options": {"temperature": 0.1, "num_predict": 20}
-            },
-            timeout=OLLAMA_TIMEOUT
+        # Validate Menu Name (Only if still found)
+        if data.get("found"):
+            matched_item = next((item for item in menu_items if item["name"] == target_name), None)
+            if not matched_item:
+                # Try fuzzy match if exact match failed but LLM said found
+                names = [item["name"] for item in menu_items]
+                matches = difflib.get_close_matches(target_name, names, n=1, cutoff=0.6)
+                if matches:
+                     matched_item = next((item for item in menu_items if item["name"] == matches[0]), None)
+                
+                if not matched_item:
+                     # Fuzzy fail -> Trigger fallback
+                     data["found"] = False
+                     
+        if not data.get("found"):
+            # Fallback: Check for exact substring match in candidates
+            best_fallback = None
+            longest_len = 0
+            for item in menu_items:
+                if item["name"] in transcript:
+                    if len(item["name"]) > longest_len:
+                        longest_len = len(item["name"])
+                        best_fallback = item
+            
+            if best_fallback:
+                print(f"[Fallback] Recovered '{best_fallback['name']}' from exact substring.")
+                return OrderItem(
+                    menu_name=best_fallback['name'],
+                    quantity=1,
+                    price=best_fallback['base_price'],
+                    addons=[],
+                    note=""
+                )
+            return None
+        # Build Order Objects
+        add_ons_objects = []
+        for addon_name in data.get("addons", []):
+            # Careful with whitespace
+            addon_name = addon_name.strip()
+            if addon_name in ADD_ONS:
+                add_ons_objects.append(AddOn(name=addon_name, price=ADD_ONS[addon_name]["price"], selected=True))
+        
+        total = matched_item["base_price"] + sum(a.price for a in add_ons_objects)
+        quant = data.get("quantity", 1)
+        if isinstance(quant, str): # Handle if LLM returns string "1"
+             try: quant = int(quant)
+             except: quant = 1
+             
+        return OrderItem(
+            menu_name=matched_item["name"], 
+            quantity=max(1, quant), 
+            price=int(total * max(1, quant)), 
+            add_ons=add_ons_objects, 
+            note=data.get("note")
         )
-        response.raise_for_status()
-        
-        result = response.json().get("response", "").strip()
-        print(f"[LLM Parse] Result: {result}")
-        
-        # Try to extract ID from response
-        import re
-        match = re.search(r'\d+', result)
-        if match:
-            menu_id = int(match.group())
-            if menu_id > 0:
-                for item in menu_items:
-                    if item.get("id") == menu_id:
-                        return item
-        
-        # Fallback: Try to match by name if LLM returned a name
-        # First try exact match
-        for item in menu_items:
-            if item["name"] == result:
-                return item
-        
-        # Then try finding longest matching name (to prefer ข้าวกะเพราหมูกรอบ over ข้าวกะเพราหมู)
-        best_match = None
-        best_len = 0
-        for item in menu_items:
-            if item["name"] in result:
-                if len(item["name"]) > best_len:
-                    best_len = len(item["name"])
-                    best_match = item
-        if best_match:
-            return best_match
-        
-        return None
+
     except Exception as e:
-        print(f"[LLM Parse Error] {e}")
+        print(f"[LLM Error] {e}")
         return None
-
-
-# ============ Order Parsing (using cache) ============
-def process_order(transcript: str) -> Optional[OrderItem]:
-    """Parse order using cached menu data (note is added separately via frontend)"""
-    
-    clean_text = transcript.replace("เอา", "").replace("ขอ", "").strip()
-    
-    candidates = []
-    best_score = 0
-    
-    # Score each menu item by keyword matches
-    for item in MENU_CACHE["items"]:
-        score = 0
-        for keyword in item["keywords"]:
-            if keyword in clean_text:
-                score += len(keyword)  # Longer matches score higher
-        
-        if score > best_score:
-            best_score = score
-            candidates = [item]
-        elif score == best_score and score > 0:
-            candidates.append(item)
-    
-    # Ambiguity check: if multiple items have the COMPETING best score, return None to trigger suggestions
-    # Exception: if they are identical name (duplicate) or very obvious logic overrides
-    if len(candidates) > 1:
-        return None
-
-    if len(candidates) == 1:
-        best_match = candidates[0]
-        # Check Add-ons
-        add_ons = []
-        is_gap_khao = False
-        
-        if "กับข้าว" in transcript:
-            is_gap_khao = True
-            add_ons.append(AddOn(name="กับข้าว", price=ADD_ONS["กับข้าว"]["price"], selected=True))
-        
-        for addon_name, addon_info in ADD_ONS.items():
-            if addon_name == "กับข้าว":
-                continue
-            if addon_name in transcript and addon_name not in best_match["name"]:
-                add_ons.append(AddOn(name=addon_name, price=addon_info["price"], selected=True))
-        
-        # Calculate total
-        menu_name = best_match["name"]
-        base_price = best_match["base_price"]
-        
-        if is_gap_khao:
-            menu_name = menu_name.replace("ข้าว", "") + " (กับข้าว)"
-        
-        total = base_price + sum(a.price for a in add_ons)
-        
-        # Note is None - will be added separately via frontend
-        return OrderItem(menu_name=menu_name, quantity=1, price=total, add_ons=add_ons, note=None)
-    
-    return None
 
 
 def get_suggestions(transcript: str, limit: int = 10) -> list[str]:
@@ -1006,111 +990,28 @@ async def process_text_order(request: TextOrderRequest):
                 suggestions=[]
             )
         
-        # === STAGE 1: Keyword Matching with Confidence ===
-        best_match, confidence, candidates = score_menu_with_confidence(transcript, MENU_CACHE["items"])
-        print(f"[V2] Confidence: {confidence}%, Best: {best_match['name'] if best_match else 'None'}")
+        # === AI-Based Order Extraction (No Keyword Matching) ===
+        print(f"[AIv3] Processing: {transcript}")
         
-        if not best_match or confidence < 30:
-            # Check if input is too short/ambiguous (just a protein keyword)
-            clean_input = transcript.replace("เอา", "").replace("ขอ", "").replace("หน่อย", "").replace("ครับ", "").strip()
-            is_just_protein = clean_input in PROTEIN_KEYWORDS or len(clean_input) < 8
-            
-            if not is_just_protein:
-                # Try LLM parsing as fallback before showing suggestions
-                print(f"[V2] Low confidence ({confidence}%), trying LLM parsing...")
-                llm_match = ask_llm_to_parse(transcript, MENU_CACHE["items"])
-                if llm_match:
-                    print(f"[V2] LLM found match: {llm_match['name']}")
-                    best_match = llm_match
-                    confidence = 80  # Trust LLM match
-            
-            if not best_match or confidence < 30:
-                # LLM also couldn't parse OR input was too short - show suggestions
-                suggestions = [c["item"]["name"] for c in candidates] if candidates else get_suggestions(transcript)
-                return OrderResponse(
-                    success=False,
-                    transcript=transcript,
-                    error="ไม่พบรายการที่ตรงกัน กรุณาเลือกจากรายการด้านล่าง",
-                    suggestions=suggestions[:8]
-                )
+        extracted_order = extract_order_with_llm(transcript, MENU_CACHE["items"])
         
-        # === STAGE 2: LLM Verification for Medium Confidence ===
-        if 30 <= confidence < 85:
-            # Check if input is too short/ambiguous (just a protein keyword)
-            clean_input = transcript.replace("เอา", "").replace("ขอ", "").replace("หน่อย", "").replace("ครับ", "").strip()
-            is_just_protein = clean_input in PROTEIN_KEYWORDS or len(clean_input) < 8
-            
-            if is_just_protein:
-                # Too ambiguous - show suggestions instead of trusting LLM
-                print(f"[V2] Input too short/ambiguous, showing suggestions")
-                suggestions = get_suggestions(transcript)
-                return OrderResponse(
-                    success=False,
-                    transcript=transcript,
-                    error="รายการคลุมเครือ กรุณาเลือกจากรายการด้านล่าง",
-                    suggestions=suggestions[:8]
-                )
-            
-            print(f"[V2] Medium confidence ({confidence}%), calling LLM to verify...")
-            is_correct = verify_match_with_llm(transcript, best_match)
-            if not is_correct:
-                # LLM rejected, but if keyword matching had decent confidence (>50%), trust it anyway
-                # LLM parsing is unreliable and often returns wrong results
-                if confidence >= 50:
-                    print(f"[V2] LLM rejected but confidence {confidence}% is good, trusting keyword match")
-                    # Continue with keyword match result
-                else:
-                    # Low confidence AND LLM rejected - show suggestions
-                    print(f"[V2] LLM rejected and low confidence, showing suggestions")
-                    suggestions = [c["item"]["name"] for c in candidates] if candidates else get_suggestions(transcript)
-                    return OrderResponse(
-                        success=False,
-                        transcript=transcript,
-                        error="ระบบไม่แน่ใจ กรุณาเลือกจากรายการด้านล่าง",
-                        suggestions=suggestions[:8]
-                    )
-            else:
-                print(f"[V2] LLM confirmed match!")
-        
-        # === Create Order Item ===
-        add_ons = []
-        is_gap_khao = False
-        
-        if "กับข้าว" in transcript:
-            is_gap_khao = True
-            add_ons.append(AddOn(name="กับข้าว", price=ADD_ONS["กับข้าว"]["price"], selected=True))
-        
-        for addon_name, addon_info in ADD_ONS.items():
-            if addon_name == "กับข้าว":
-                continue
-            if addon_name in transcript and addon_name not in best_match["name"]:
-                add_ons.append(AddOn(name=addon_name, price=addon_info["price"], selected=True))
-        
-        menu_name = best_match["name"]
-        base_price = best_match["base_price"]
-        
-        if is_gap_khao:
-            menu_name = menu_name.replace("ข้าว", "") + " (กับข้าว)"
-        
-        total = base_price + sum(a.price for a in add_ons)
-        
-        # === Extract extra keywords as Note ===
-        note = None
-        extra_keywords = ["หมูสับ", "ไม่เผ็ด", "เผ็ดมาก", "พิเศษ", "น้ำข้น", "ไข่ดาว", "ไข่เจียว"]
-        for extra in extra_keywords:
-            if extra in transcript and extra not in menu_name:
-                note = extra
-                break
-        
-        item = OrderItem(menu_name=menu_name, quantity=1, price=total, add_ons=add_ons, note=note)
-        print(f"[V2] Success: {menu_name} (${total})")
-        
-        return OrderResponse(
-            success=True,
-            transcript=transcript,
-            items=[item],
-            total_price=total
-        )
+        if extracted_order:
+             print(f"[AIv3] Success: {extracted_order.menu_name} ({extracted_order.price} THB)")
+             return OrderResponse(
+                success=True,
+                transcript=transcript,
+                items=[extracted_order],
+                total_price=extracted_order.price
+             )
+        else:
+             print(f"[AIv3] Failed to extract order, showing suggestions")
+             suggestions = get_suggestions(transcript)
+             return OrderResponse(
+                success=False,
+                transcript=transcript,
+                error="ไม่พบรายการที่สั่ง กรุณาพูดใหม่อีกครั้ง หรือเลือกจากรายการด้านล่าง",
+                suggestions=suggestions[:8]
+             )
         
     except Exception as e:
         print(f"Error processing text order: {e}")
