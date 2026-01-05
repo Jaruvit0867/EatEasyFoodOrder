@@ -427,9 +427,9 @@ def print_order_receipt(order_id: int, items: list, total_price: int):
         # === ORDER TYPE (Takeaway/Dine-in) ===
         is_takeaway = any("ใส่กล่องกลับบ้าน" in item.get('note', '') for item in items)
         if is_takeaway:
-            sock.sendall(image_to_escpos(text_to_image("🥡 ใส่กล่องกลับบ้าน", font_size=36, center=True, bold=True)))
+            sock.sendall(image_to_escpos(text_to_image("ใส่กล่องกลับบ้าน", font_size=36, center=True, bold=True)))
         else:
-            sock.sendall(image_to_escpos(text_to_image("🍽️ ทานที่ร้าน", font_size=36, center=True, bold=True)))
+            sock.sendall(image_to_escpos(text_to_image("ทานที่ร้าน", font_size=36, center=True, bold=True)))
         
         sock.sendall(image_to_escpos(separator_image()))
         sock.sendall(b'\n')
