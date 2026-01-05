@@ -7,9 +7,12 @@ import os
 import json
 import sqlite3
 import difflib
+import socket
 import requests  # For Ollama LLM API calls
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Tuple
+from contextlib import asynccontextmanager
+from PIL import Image, ImageDraw, ImageFont
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
@@ -24,6 +27,21 @@ THAI_TZ = timezone(timedelta(hours=7))
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "qwen2.5:1.5b"
 OLLAMA_TIMEOUT = 15
+
+# ============ Printer Configuration ============
+PRINTER_IP = "192.168.1.200"
+PRINTER_PORT = 9100
+PAPER_WIDTH = 576  # 80mm paper = ~576 pixels for full width
+THAI_FONT_PATHS = [
+    # Windows fonts (checked first)
+    "C:/Windows/Fonts/tahoma.ttf",
+    "C:/Windows/Fonts/cordia.ttc",
+    "C:/Windows/Fonts/angsana.ttc",
+    # macOS fonts
+    "/System/Library/Fonts/Supplemental/Thonburi.ttc",
+    "/System/Library/Fonts/Thonburi.ttc",
+    "/Library/Fonts/Thonburi.ttf",
+]
 
 # ============ Protein Keywords (Must match exactly) ============
 PROTEIN_KEYWORDS = ["หมู", "ไก่", "เนื้อ", "กุ้ง", "หมึก", "ปู", "ทะเล", "หมูกรอบ", "หมูสับ"]
@@ -308,6 +326,168 @@ def save_order_to_db(items: list[OrderItem], total_price: int) -> int:
     conn.commit()
     conn.close()
     return order_id
+
+# ============ Printer Functions ============
+def get_thai_font(size=24):
+    """Load Thai font from system fonts."""
+    for path in THAI_FONT_PATHS:
+        try:
+            return ImageFont.truetype(path, size)
+        except:
+            continue
+    return ImageFont.load_default()
+
+def text_to_image(text: str, font_size: int = 24, center: bool = False, bold: bool = False) -> Image.Image:
+    """Render Thai text as a black-and-white image."""
+    font = get_thai_font(font_size)
+    
+    # Calculate text size
+    dummy_img = Image.new('1', (1, 1))
+    dummy_draw = ImageDraw.Draw(dummy_img)
+    bbox = dummy_draw.textbbox((0, 0), text, font=font)
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]
+    
+    # Use full paper width for centering
+    img_width = PAPER_WIDTH
+    img_height = text_height + 12
+    img = Image.new('1', (img_width, img_height), color=1)
+    draw = ImageDraw.Draw(img)
+    
+    if center:
+        x = (img_width - text_width) // 2
+    else:
+        x = 10
+    
+    # Draw text (multiple times for bold effect)
+    draw.text((x, 0), text, font=font, fill=0)
+    if bold:
+        draw.text((x+1, 0), text, font=font, fill=0)
+        draw.text((x, 1), text, font=font, fill=0)
+    
+    return img
+
+def image_to_escpos(img: Image.Image) -> bytes:
+    """Convert PIL Image to ESC/POS raster bitmap command."""
+    if img.width > PAPER_WIDTH:
+        ratio = PAPER_WIDTH / img.width
+        img = img.resize((PAPER_WIDTH, int(img.height * ratio)))
+    
+    width = (img.width + 7) // 8 * 8
+    height = img.height
+    img = img.convert('1')
+    pixels = img.load()
+    
+    data = bytearray()
+    for y in range(height):
+        for x_byte in range(width // 8):
+            byte = 0
+            for bit in range(8):
+                x = x_byte * 8 + bit
+                if x < img.width and pixels[x, y] == 0:
+                    byte |= (0x80 >> bit)
+            data.append(byte)
+    
+    xL = (width // 8) & 0xFF
+    xH = ((width // 8) >> 8) & 0xFF
+    yL = height & 0xFF
+    yH = (height >> 8) & 0xFF
+    
+    return b'\x1d\x76\x30\x00' + bytes([xL, xH, yL, yH]) + bytes(data)
+
+def separator_image() -> Image.Image:
+    """Create a centered separator line as image."""
+    line = "=" * 40
+    return text_to_image(line, font_size=20, center=True)
+
+def print_order_receipt(order_id: int, items: list, total_price: int):
+    """Print order receipt to thermal printer using image rendering.
+    Format matches the kitchen display slip style with larger fonts.
+    """
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(5)
+        sock.connect((PRINTER_IP, PRINTER_PORT))
+        
+        # Reset & Disable Chinese mode
+        sock.sendall(b'\x1c\x2e')  # Cancel Chinese
+        sock.sendall(b'\x1b\x40')  # Reset
+        
+        # === HEADER (Centered, Bold) ===
+        sock.sendall(image_to_escpos(text_to_image("เจ๊ดา อาหารตามสั่ง", font_size=44, center=True, bold=True)))
+        sock.sendall(image_to_escpos(text_to_image("Original Thai Food", font_size=26, center=True)))
+        sock.sendall(b'\n')
+        
+        # === ORDER INFO ===
+        sock.sendall(image_to_escpos(separator_image()))
+        sock.sendall(image_to_escpos(text_to_image(f"ORDER: #{order_id}", font_size=38, center=True, bold=True)))
+        created_at = datetime.now(THAI_TZ).strftime("%d/%m/%Y %H:%M")
+        sock.sendall(image_to_escpos(text_to_image(f"DATE: {created_at}", font_size=28, center=True)))
+        
+        # === ORDER TYPE (Takeaway/Dine-in) ===
+        is_takeaway = any("ใส่กล่องกลับบ้าน" in item.get('note', '') for item in items)
+        if is_takeaway:
+            sock.sendall(image_to_escpos(text_to_image("🥡 ใส่กล่องกลับบ้าน", font_size=36, center=True, bold=True)))
+        else:
+            sock.sendall(image_to_escpos(text_to_image("🍽️ ทานที่ร้าน", font_size=36, center=True, bold=True)))
+        
+        sock.sendall(image_to_escpos(separator_image()))
+        sock.sendall(b'\n')
+        
+        # === ITEMS (Large font, Bold) ===
+        for item in items:
+            menu_name = item.get('menu_name', str(item))
+            quantity = item.get('quantity', 1)
+            price = item.get('price', 0)
+            add_ons = item.get('add_ons', [])
+            note = item.get('note', '')
+            # Clean note (remove takeaway indicator since it's shown globally)
+            clean_note = note.replace("ใส่กล่องกลับบ้าน", "").replace(",", " ").strip()
+            
+            # Main item (Large, Bold)
+            line = f"{quantity}x {menu_name}"
+            sock.sendall(image_to_escpos(text_to_image(line, font_size=36, bold=True)))
+            
+            # Price line
+            if price:
+                sock.sendall(image_to_escpos(text_to_image(f"   ราคา: {price}.-", font_size=30)))
+            
+            # Add-ons (Large for elderly)
+            for addon in add_ons:
+                addon_name = addon.get('name', str(addon))
+                addon_price = addon.get('price', 0)
+                addon_line = f"   + {addon_name} (+{addon_price})"
+                sock.sendall(image_to_escpos(text_to_image(addon_line, font_size=28)))
+            
+            # Note (Large for elderly) - only show if has content after cleaning
+            if clean_note:
+                note_line = f"   * {clean_note}"
+                sock.sendall(image_to_escpos(text_to_image(note_line, font_size=28)))
+            
+            sock.sendall(b'\n')
+        
+        # === TOTAL (Extra Large, Centered, Bold) ===
+        sock.sendall(b'\n')
+        sock.sendall(image_to_escpos(separator_image()))
+        sock.sendall(b'\n')
+        sock.sendall(image_to_escpos(text_to_image(f"TOTAL: {total_price} B", font_size=40, center=True, bold=True)))
+        sock.sendall(b'\n')
+        sock.sendall(image_to_escpos(separator_image()))
+        
+        # === FOOTER ===
+        sock.sendall(b'\n')
+        sock.sendall(image_to_escpos(text_to_image("* THANK YOU *", font_size=30, center=True)))
+        
+        # Feed and cut
+        sock.sendall(b'\n\n\n\x1d\x56\x42\x00')
+        
+        sock.close()
+        print(f"[Printer] Order #{order_id} printed successfully")
+        return True
+        
+    except Exception as e:
+        print(f"[Printer] Error printing order #{order_id}: {e}")
+        return False
 
 def get_pending_orders():
     """Retrieve pending orders for kitchen display"""
@@ -1118,9 +1298,17 @@ async def process_text_order(request: TextOrderRequest):
 
 @app.post("/confirm-order", response_model=ConfirmOrderResponse)
 async def confirm_order(request: ConfirmOrderRequest):
-    """Save confirmed order to database"""
+    """Save confirmed order to database and print receipt"""
     try:
         order_id = save_order_to_db(request.items, request.total_price)
+        
+        # Print receipt to kitchen printer (non-blocking, don't fail if printer is offline)
+        try:
+            items_data = [item.model_dump() for item in request.items]
+            print_order_receipt(order_id, items_data, request.total_price)
+        except Exception as print_error:
+            print(f"[Printer] Warning: Could not print receipt: {print_error}")
+        
         return ConfirmOrderResponse(
             success=True,
             order_id=order_id,
