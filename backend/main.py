@@ -425,7 +425,7 @@ def print_order_receipt(order_id: int, items: list, total_price: int):
         sock.sendall(image_to_escpos(text_to_image(f"DATE: {created_at}", font_size=28, center=True)))
         
         # === ORDER TYPE (Takeaway/Dine-in) ===
-        is_takeaway = any("ใส่กล่องกลับบ้าน" in item.get('note', '') for item in items)
+        is_takeaway = any("ใส่กล่องกลับบ้าน" in (item.get('note') or '') for item in items)
         if is_takeaway:
             sock.sendall(image_to_escpos(text_to_image("ใส่กล่องกลับบ้าน", font_size=36, center=True, bold=True)))
         else:
@@ -440,7 +440,7 @@ def print_order_receipt(order_id: int, items: list, total_price: int):
             quantity = item.get('quantity', 1)
             price = item.get('price', 0)
             add_ons = item.get('add_ons', [])
-            note = item.get('note', '')
+            note = item.get('note') or ''
             # Clean note (remove takeaway indicator since it's shown globally)
             clean_note = note.replace("ใส่กล่องกลับบ้าน", "").replace(",", " ").strip()
             
@@ -1274,11 +1274,12 @@ async def process_text_order(request: TextOrderRequest):
         
         total = base_price + sum(a.price for a in add_ons)
         
-        # === Extract extra keywords as Note ===
+        # === Extract extra keywords as Note (exclude those already in add_ons) ===
         note = None
-        extra_keywords = ["หมูสับ", "ไม่เผ็ด", "เผ็ดมาก", "พิเศษ", "น้ำข้น", "ไข่ดาว", "ไข่เจียว"]
+        addon_names = [a.name for a in add_ons]  # Get list of add-on names already added
+        extra_keywords = ["หมูสับ", "ไม่เผ็ด", "เผ็ดมาก", "น้ำข้น"]  # Only non-addon keywords
         for extra in extra_keywords:
-            if extra in transcript and extra not in menu_name:
+            if extra in transcript and extra not in menu_name and extra not in addon_names:
                 note = extra
                 break
         
