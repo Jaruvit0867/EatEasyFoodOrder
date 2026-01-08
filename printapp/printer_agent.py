@@ -35,13 +35,32 @@ THAI_TZ = pytz.timezone('Asia/Bangkok')
 last_printed_id = 0
 auth_token = None
 
-# Load last printed ID from file
-if os.path.exists("last_printed_id.txt"):
+def get_latest_order_id_from_backend():
+    """Fetch the latest order ID from backend on startup."""
+    global auth_token
     try:
-        with open("last_printed_id.txt", "r") as f:
-            last_printed_id = int(f.read().strip())
-    except:
-        pass
+        # Login first if needed
+        if not auth_token:
+            res = requests.post(f"{API_URL}/auth/login", json={
+                "username": ADMIN_USERNAME,
+                "password": ADMIN_PASSWORD
+            }, timeout=10)
+            if res.status_code == 200:
+                auth_token = res.json().get("token")
+            else:
+                return 0
+        
+        headers = {"Authorization": f"Bearer {auth_token}"}
+        res = requests.get(f"{API_URL}/orders", headers=headers, timeout=10)
+        if res.status_code == 200:
+            data = res.json()
+            orders = data.get("orders", [])
+            if orders:
+                return max(o['id'] for o in orders)
+        return 0
+    except Exception as e:
+        print(f"Could not fetch latest order ID: {e}")
+        return 0
 
 def get_thai_font(size=24):
     """Load Thai font from system fonts."""
@@ -259,25 +278,12 @@ def check_orders():
         orders = data.get("orders", [])
         orders.sort(key=lambda x: x['id']) # Ensure sorted by ID
         
-        # Filter new orders
-        if last_printed_id == 0 and orders:
-            # FIRST RUN SAFETY: Assume all current orders are already handled/printed
-            # Only print orders that come AFTER this moment
-            last_printed_id = orders[-1]['id']
-            print(f"⚠️ First run detected: Skipping historical orders up to ID #{last_printed_id}")
-            with open("last_printed_id.txt", "w") as f:
-                f.write(str(last_printed_id))
-            return
-
         new_orders = [o for o in orders if o['id'] > last_printed_id]
         
         for order in new_orders:
             print(f"Found new order #{order['id']}")
             if print_receipt(order):
                 last_printed_id = order['id']
-                # Save state
-                with open("last_printed_id.txt", "w") as f:
-                    f.write(str(last_printed_id))
                     
     except Exception as e:
         print(f"Polling error: {e}")
@@ -287,7 +293,11 @@ if __name__ == "__main__":
     print("🖨️  EAT EASY PRINTER AGENT STARTED")
     print(f"Target Backend: {API_URL}")
     print(f"Printer IP: {PRINTER_IP}")
-    print(f"Last Printed ID: {last_printed_id}")
+    
+    # Fetch latest order ID from backend on startup (real-time detection)
+    print("Fetching latest order ID from backend...")
+    last_printed_id = get_latest_order_id_from_backend()
+    print(f"Starting from Order ID: {last_printed_id} (will print new orders after this)")
     print("-" * 40)
     
     while True:

@@ -12,6 +12,15 @@ if %errorlevel% neq 0 (
     exit /b
 )
 
+:: Create virtual environment if not exists
+if not exist ".venv" (
+    echo Creating virtual environment...
+    python -m venv .venv
+)
+
+:: Activate venv
+call .venv\Scripts\activate.bat
+
 :: Install dependencies
 echo Installing libraries...
 pip install requests pillow python-dotenv pytz
