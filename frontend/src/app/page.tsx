@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { API_URL } from "../config";
 
 // Types
 interface MenuItem {
@@ -45,7 +46,7 @@ type AppState = "idle" | "recording" | "processing" | "review" | "confirmed" | "
 
 // Backend URL: Use relative "/api" path to leverage Next.js Rewrites (Proxies to 8000)
 // This solves Mixed Content (HTTPS->HTTP) and CORS/Network issues on mobile
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
+const BACKEND_URL = API_URL;
 
 export default function VoiceOrderPage() {
   const [appState, setAppState] = useState<AppState>("idle");

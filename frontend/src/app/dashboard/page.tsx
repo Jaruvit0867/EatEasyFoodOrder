@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { API_URL } from "../../config";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
+const BACKEND_URL = API_URL;
 
 interface MenuItem {
     id: number;
