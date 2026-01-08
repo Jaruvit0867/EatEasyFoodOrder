@@ -1247,7 +1247,12 @@ async def verify_auth(user: str = Depends(get_current_user)):
 @app.post("/auth/logout")
 async def logout(response: Response):
     """Logout - clear auth cookie"""
-    response.delete_cookie("auth_token")
+    # Must use same options as set_cookie for cross-origin cookie deletion
+    response.delete_cookie(
+        key="auth_token",
+        secure=True,
+        samesite="none",
+    )
     return {"success": True, "message": "Logged out"}
 
 # ============ Health Check ============
