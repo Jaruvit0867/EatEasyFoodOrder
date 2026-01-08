@@ -1182,20 +1182,24 @@ def create_access_token(username: str) -> str:
     to_encode = {"sub": username, "exp": expire}
     return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify password against hash"""
-    return pwd_context.verify(plain_password, hashed_password)
+def get_token_from_header(authorization: Optional[str] = None) -> Optional[str]:
+    """Extract token from Authorization header"""
+    if not authorization:
+        return None
+    parts = authorization.split()
+    if len(parts) == 2 and parts[0].lower() == "bearer":
+        return parts[1]
+    return None
 
-def get_password_hash(password: str) -> str:
-    """Hash a password"""
-    return pwd_context.hash(password)
+from fastapi import Header
 
-async def get_current_user(auth_token: Optional[str] = Cookie(default=None)) -> Optional[str]:
-    """Get current user from JWT token in cookie"""
-    if not auth_token:
+async def get_current_user(authorization: Optional[str] = Header(default=None)) -> Optional[str]:
+    """Get current user from JWT token in Authorization header"""
+    token = get_token_from_header(authorization)
+    if not token:
         return None
     try:
-        payload = jwt.decode(auth_token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             return None
@@ -1203,9 +1207,9 @@ async def get_current_user(auth_token: Optional[str] = Cookie(default=None)) -> 
     except JWTError:
         return None
 
-async def require_auth(auth_token: Optional[str] = Cookie(default=None)) -> str:
+async def require_auth(authorization: Optional[str] = Header(default=None)) -> str:
     """Dependency that requires authentication"""
-    user = await get_current_user(auth_token)
+    user = await get_current_user(authorization)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return user
@@ -1216,8 +1220,8 @@ class LoginRequest(BaseModel):
     password: str
 
 @app.post("/auth/login")
-async def login(request: LoginRequest, response: Response):
-    """Login with username and password, returns JWT in cookie"""
+async def login(request: LoginRequest):
+    """Login with username and password, returns JWT token"""
     # Check credentials against environment variables
     if request.username != ADMIN_USERNAME or request.password != ADMIN_PASSWORD:
         raise HTTPException(status_code=401, detail="Invalid username or password")
@@ -1225,17 +1229,8 @@ async def login(request: LoginRequest, response: Response):
     # Create token
     token = create_access_token(request.username)
     
-    # Set cookie (httponly for security)
-    response.set_cookie(
-        key="auth_token",
-        value=token,
-        httponly=True,
-        secure=True,  # Only send over HTTPS
-        samesite="none",  # Allow cross-site requests
-        max_age=JWT_EXPIRE_HOURS * 3600
-    )
-    
-    return {"success": True, "message": "Login successful"}
+    # Return token in response body (for localStorage storage)
+    return {"success": True, "message": "Login successful", "token": token}
 
 @app.get("/auth/verify")
 async def verify_auth(user: str = Depends(get_current_user)):
@@ -1245,14 +1240,8 @@ async def verify_auth(user: str = Depends(get_current_user)):
     return {"authenticated": False}
 
 @app.post("/auth/logout")
-async def logout(response: Response):
-    """Logout - clear auth cookie"""
-    # Must use same options as set_cookie for cross-origin cookie deletion
-    response.delete_cookie(
-        key="auth_token",
-        secure=True,
-        samesite="none",
-    )
+async def logout():
+    """Logout - client should remove token from localStorage"""
     return {"success": True, "message": "Logged out"}
 
 # ============ Health Check ============

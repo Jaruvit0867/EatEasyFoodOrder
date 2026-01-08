@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { API_URL } from "../../config";
+import { login } from "../../auth";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -16,28 +16,16 @@ export default function LoginPage() {
         setError("");
         setLoading(true);
 
-        try {
-            const response = await fetch(`${API_URL}/auth/login`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                credentials: "include", // Important for cookies
-                body: JSON.stringify({ username, password }),
-            });
+        const result = await login(username, password);
 
-            if (response.ok) {
-                // Redirect to dashboard on success
-                router.push("/dashboard");
-            } else {
-                const data = await response.json();
-                setError(data.detail || "Login failed");
-            }
-        } catch {
-            setError("Cannot connect to server");
-        } finally {
-            setLoading(false);
+        if (result.success) {
+            // Redirect to home page on success
+            router.push("/");
+        } else {
+            setError(result.error || "Login failed");
         }
+
+        setLoading(false);
     };
 
     return (
