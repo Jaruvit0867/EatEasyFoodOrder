@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { API_URL } from "../config";
+import { checkAuth } from "../auth";
 
 // Types
 interface MenuItem {
@@ -29,7 +31,7 @@ interface OrderItem {
   note: string | null;
   price: number | null;
   add_ons: AddOn[];
-  dineOption?: "dine-in" | "takeaway"; // (Legacy) Still kept for type compatibility if needed, but logic moves to global
+  dineOption?: "dine-in" | "takeaway";
 }
 
 interface OrderResponse {
@@ -49,18 +51,21 @@ type AppState = "idle" | "recording" | "processing" | "review" | "confirmed" | "
 const BACKEND_URL = API_URL;
 
 export default function VoiceOrderPage() {
+  const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
   const [appState, setAppState] = useState<AppState>("idle");
   const [orderData, setOrderData] = useState<OrderResponse | null>(null);
-  const [cart, setCart] = useState<OrderItem[]>([]); // Persistent cart
+  const [cart, setCart] = useState<OrderItem[]>([]);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [confirmationMessage, setConfirmationMessage] = useState<string>("");
-  const [liveTranscript, setLiveTranscript] = useState<string>(""); // Real-time transcript
-  const [recordingTime, setRecordingTime] = useState<number>(0); // Recording duration
-  const [noteMode, setNoteMode] = useState<number>(-1); // -1 = order mode, >= 0 = adding note to cart item at index
-  const [suggestions, setSuggestions] = useState<string[]>([]); // Suggestions for failed orders
-  const [showValidationModal, setShowValidationModal] = useState<boolean>(false); // Modal for empty cart validation
-  const [showOrderTypeModal, setShowOrderTypeModal] = useState<boolean>(false); // Modal for Eat-in/Takeaway selection
-  const [expandedIndex, setExpandedIndex] = useState<number>(-1); // Accordion: which cart item is expanded (-1 = none)
+  const [liveTranscript, setLiveTranscript] = useState<string>("");
+  const [recordingTime, setRecordingTime] = useState<number>(0);
+  const [noteMode, setNoteMode] = useState<number>(-1);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showValidationModal, setShowValidationModal] = useState<boolean>(false);
+  const [showOrderTypeModal, setShowOrderTypeModal] = useState<boolean>(false);
+  const [expandedIndex, setExpandedIndex] = useState<number>(-1);
 
   // Manual Add State
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -71,15 +76,31 @@ export default function VoiceOrderPage() {
   const [manualAddons, setManualAddons] = useState<string[]>([]);
   const [manualQuantity, setManualQuantity] = useState(1);
 
-  // Fetch Menu Data
+  // Check authentication on mount
   useEffect(() => {
+    const verifyAuth = async () => {
+      const authenticated = await checkAuth();
+      if (!authenticated) {
+        router.push("/login");
+      } else {
+        setIsAuthenticated(true);
+      }
+      setAuthLoading(false);
+    };
+    verifyAuth();
+  }, [router]);
+
+  // Fetch Menu Data (only when authenticated)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
     const fetchData = async () => {
       try {
-        const menuRes = await fetch(`${BACKEND_URL}/menu-items`);
+        const menuRes = await fetch(`${BACKEND_URL}/menu-items`, { credentials: "include" });
         const menuData = await menuRes.json();
         if (menuData.success) setMenuItems(menuData.items);
 
-        const addonRes = await fetch(`${BACKEND_URL}/addons`);
+        const addonRes = await fetch(`${BACKEND_URL}/addons`, { credentials: "include" });
         const addonData = await addonRes.json();
         if (addonData.addons) setAddonOptions(addonData.addons);
       } catch (e) {
@@ -87,7 +108,8 @@ export default function VoiceOrderPage() {
       }
     };
     fetchData();
-  }, []);
+  }, [isAuthenticated]);
+
 
   const openManualModal = () => {
     setShowManualModal(true);
@@ -630,6 +652,19 @@ export default function VoiceOrderPage() {
       }
     };
   }, []);
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
+        <div className="text-orange-500 text-xl animate-pulse">กำลังตรวจสอบสิทธิ์...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <main className="h-[100dvh] w-full bg-[#0f172a] text-white flex flex-col landscape:flex-row overflow-hidden supports-[height:100svh]:h-[100svh]">
