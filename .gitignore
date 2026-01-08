@@ -11,6 +11,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.env
+.env.local
 
 # Node.js
 node_modules/

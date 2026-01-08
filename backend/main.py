@@ -13,24 +13,28 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Tuple
 from contextlib import asynccontextmanager
 from PIL import Image, ImageDraw, ImageFont
-from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# ============ Configuration ============
-DATABASE_PATH = "orders.sqlite"
+# Load environment variables from .env file
+load_dotenv()
+
+# ============ Configuration (from environment variables) ============
+DATABASE_PATH = os.getenv("DATABASE_PATH", "orders.sqlite")
 THAI_TZ = timezone(timedelta(hours=7))
 
 # ============ Ollama LLM Configuration ============
-OLLAMA_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "qwen2.5:1.5b"
-OLLAMA_TIMEOUT = 15
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")
+OLLAMA_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "15"))
 
 # ============ Printer Configuration ============
-PRINTER_IP = "192.168.1.200"
-PRINTER_PORT = 9100
+PRINTER_ENABLED = os.getenv("PRINTER_ENABLED", "false").lower() == "true"
+PRINTER_IP = os.getenv("PRINTER_IP", "192.168.1.200")
+PRINTER_PORT = int(os.getenv("PRINTER_PORT", "9100"))
 PAPER_WIDTH = 576  # 80mm paper = ~576 pixels for full width
 THAI_FONT_PATHS = [
     # Windows fonts (checked first)
@@ -42,6 +46,9 @@ THAI_FONT_PATHS = [
     "/System/Library/Fonts/Thonburi.ttc",
     "/Library/Fonts/Thonburi.ttf",
 ]
+
+# ============ CORS Configuration ============
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,https://localhost:3000").split(",")
 
 # ============ Protein Keywords (Must match exactly) ============
 PROTEIN_KEYWORDS = ["หมู", "ไก่", "เนื้อ", "กุ้ง", "หมึก", "ปู", "ทะเล", "หมูกรอบ", "หมูสับ"]
@@ -404,6 +411,11 @@ def print_order_receipt(order_id: int, items: list, total_price: int):
     """Print order receipt to thermal printer using image rendering.
     Format matches the kitchen display slip style with larger fonts.
     """
+    # Skip printing if disabled via environment variable
+    if not PRINTER_ENABLED:
+        print(f"[Printer] Printing disabled - Order #{order_id} not printed")
+        return False
+    
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(5)
@@ -1140,10 +1152,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS configuration for frontend access
+# CORS configuration for frontend access (origins from environment variable)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
