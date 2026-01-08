@@ -1,0 +1,230 @@
+2026-01-08T19:04:53.2123136Z Container start method called.
+2026-01-08T19:04:53.2125006Z Establishing network.
+2026-01-08T19:04:53.2135862Z Pulling image: appsvc/python:3.11_20251017.5.tuxprod.
+2026-01-08T19:04:53.3144758Z Container is starting.
+2026-01-08T19:04:53.3152392Z Establishing user namespace if not established already.
+2026-01-08T19:04:53.3154043Z Establishing network if not established already.
+2026-01-08T19:04:53.3155342Z Mounting volumes.
+2026-01-08T19:04:53.3156783Z Nested mountpoint 
+2026-01-08T19:04:53.3186062Z Nested mountpoint volatile/logs
+2026-01-08T19:04:53.3273698Z Nested mountpoint 
+2026-01-08T19:04:53.3291288Z Nested mountpoint 
+2026-01-08T19:04:53.3349347Z Nested mountpoint 
+2026-01-08T19:04:53.4213143Z Creating container.
+2026-01-08T19:04:53.4214419Z Creating pipes for streaming container io.
+2026-01-08T19:04:53.4215785Z Creating stdout named pipe at /podr/container/pipe/96eae78f4890_eateasy-backend/stdout_29fa043181694abe81744fce335634c9.
+2026-01-08T19:04:53.4219640Z Successfully created stdout named pipe at: /podr/container/pipe/96eae78f4890_eateasy-backend/stdout_29fa043181694abe81744fce335634c9.
+2026-01-08T19:04:53.4221211Z Opening named pipe /podr/container/pipe/96eae78f4890_eateasy-backend/stdout_29fa043181694abe81744fce335634c9 for reading in non-blocking mode.
+2026-01-08T19:04:53.4222628Z Successfully opened named pipe: /podr/container/pipe/96eae78f4890_eateasy-backend/stdout_29fa043181694abe81744fce335634c9.
+2026-01-08T19:04:53.4223906Z Successfully removed non-blocking flag from /podr/container/pipe/96eae78f4890_eateasy-backend/stdout_29fa043181694abe81744fce335634c9.
+2026-01-08T19:04:53.4225874Z Creating stderr named pipe at /podr/container/pipe/96eae78f4890_eateasy-backend/stderr_b1ed3333dda640bd8e9f27d5c4e0b27d.
+2026-01-08T19:04:53.4232518Z Successfully created stderr named pipe at: /podr/container/pipe/96eae78f4890_eateasy-backend/stderr_b1ed3333dda640bd8e9f27d5c4e0b27d.
+2026-01-08T19:04:53.4233936Z Opening named pipe /podr/container/pipe/96eae78f4890_eateasy-backend/stderr_b1ed3333dda640bd8e9f27d5c4e0b27d for reading in non-blocking mode.
+2026-01-08T19:04:53.4235311Z Successfully opened named pipe: /podr/container/pipe/96eae78f4890_eateasy-backend/stderr_b1ed3333dda640bd8e9f27d5c4e0b27d.
+2026-01-08T19:04:53.4236419Z Successfully removed non-blocking flag from /podr/container/pipe/96eae78f4890_eateasy-backend/stderr_b1ed3333dda640bd8e9f27d5c4e0b27d.
+2026-01-08T19:04:53.4238113Z Creating container with image: appsvc/python:3.11_20251017.5.tuxprod from registry: 10.1.0.5:13209 and fully qualified image name: 10.1.0.5:13209/appsvc/python:3.11_20251017.5.tuxprod
+2026-01-08T19:04:53.6905750Z Starting container: 96eae78f4890_eateasy-backend.
+2026-01-08T19:04:53.7169405Z Starting watchers and probes.
+2026-01-08T19:04:53.7172558Z Starting metrics collection.
+2026-01-08T19:04:53.7174268Z Container is running.
+2026-01-08T19:04:53.7551546Z Container start method finished after 542 ms.
+2026-01-08T19:05:02.4420840Z Container has finished running with exit code: 2.
+2026-01-08T19:05:02.4426551Z Container is terminating. Grace period: 5 seconds.
+2026-01-08T19:05:02.4430968Z Stop and delete container. Retry count = 0
+2026-01-08T19:05:02.4432369Z Stopping container: 96eae78f4890_eateasy-backend.
+2026-01-08T19:05:02.5431581Z Deleting container: 96eae78f4890_eateasy-backend. Retry count = 0
+2026-01-08T19:05:02.6444556Z Container spec TerminationMessagePolicy  path 
+2026-01-08T19:05:02.6448034Z Container is terminated. Total time elapsed: 201 ms.
+2026-01-08T19:05:02.6449436Z Site container: eateasy-backend terminated during site startup.
+2026-01-08T19:05:02.6479911Z Site startup probe failed after 8.8804913 seconds.
+2026-01-08T19:05:02.7099636Z Failed to start site. Revert by stopping site.
+2026-01-08T19:05:02.7104352Z Site: eateasy-backend stopped.
+2026-01-08T19:05:29.5969770Z Container start method called.
+2026-01-08T19:05:29.5976916Z Establishing network.
+2026-01-08T19:05:29.5981664Z Pulling image: appsvc/python:3.11_20251017.5.tuxprod.
+2026-01-08T19:05:29.6937329Z Container is starting.
+2026-01-08T19:05:29.6957424Z Establishing user namespace if not established already.
+2026-01-08T19:05:29.6960013Z Establishing network if not established already.
+2026-01-08T19:05:29.6961767Z Mounting volumes.
+2026-01-08T19:05:29.6963629Z Nested mountpoint 
+2026-01-08T19:05:29.6996070Z Nested mountpoint volatile/logs
+2026-01-08T19:05:29.7133412Z Nested mountpoint 
+2026-01-08T19:05:29.7166467Z Nested mountpoint 
+2026-01-08T19:05:29.7216989Z Nested mountpoint 
+2026-01-08T19:05:29.8017490Z Creating container.
+2026-01-08T19:05:29.8018922Z Creating pipes for streaming container io.
+2026-01-08T19:05:29.8024187Z Creating stdout named pipe at /podr/container/pipe/e5cc68857f9d_eateasy-backend/stdout_375627a9daed445ba8a7f285d5ff9b98.
+2026-01-08T19:05:29.8029117Z Successfully created stdout named pipe at: /podr/container/pipe/e5cc68857f9d_eateasy-backend/stdout_375627a9daed445ba8a7f285d5ff9b98.
+2026-01-08T19:05:29.8030775Z Opening named pipe /podr/container/pipe/e5cc68857f9d_eateasy-backend/stdout_375627a9daed445ba8a7f285d5ff9b98 for reading in non-blocking mode.
+2026-01-08T19:05:29.8037180Z Successfully opened named pipe: /podr/container/pipe/e5cc68857f9d_eateasy-backend/stdout_375627a9daed445ba8a7f285d5ff9b98.
+2026-01-08T19:05:29.8039057Z Successfully removed non-blocking flag from /podr/container/pipe/e5cc68857f9d_eateasy-backend/stdout_375627a9daed445ba8a7f285d5ff9b98.
+2026-01-08T19:05:29.8040268Z Creating stderr named pipe at /podr/container/pipe/e5cc68857f9d_eateasy-backend/stderr_cd7118eba29d4c73abf30ca8463ba141.
+2026-01-08T19:05:29.8041893Z Successfully created stderr named pipe at: /podr/container/pipe/e5cc68857f9d_eateasy-backend/stderr_cd7118eba29d4c73abf30ca8463ba141.
+2026-01-08T19:05:29.8043032Z Opening named pipe /podr/container/pipe/e5cc68857f9d_eateasy-backend/stderr_cd7118eba29d4c73abf30ca8463ba141 for reading in non-blocking mode.
+2026-01-08T19:05:29.8047550Z Successfully opened named pipe: /podr/container/pipe/e5cc68857f9d_eateasy-backend/stderr_cd7118eba29d4c73abf30ca8463ba141.
+2026-01-08T19:05:29.8051828Z Successfully removed non-blocking flag from /podr/container/pipe/e5cc68857f9d_eateasy-backend/stderr_cd7118eba29d4c73abf30ca8463ba141.
+2026-01-08T19:05:29.8053475Z Creating container with image: appsvc/python:3.11_20251017.5.tuxprod from registry: 10.1.0.6:13209 and fully qualified image name: 10.1.0.6:13209/appsvc/python:3.11_20251017.5.tuxprod
+2026-01-08T19:05:30.0299057Z Starting container: e5cc68857f9d_eateasy-backend.
+2026-01-08T19:05:30.0863269Z Starting watchers and probes.
+2026-01-08T19:05:30.0916212Z Starting metrics collection.
+2026-01-08T19:05:30.0932194Z Container is running.
+2026-01-08T19:05:30.1315455Z Container start method finished after 534 ms.
+2026-01-08T19:05:38.1276810Z Container has finished running with exit code: 2.
+2026-01-08T19:05:38.1278044Z Container is terminating. Grace period: 5 seconds.
+2026-01-08T19:05:38.1280417Z Stop and delete container. Retry count = 0
+2026-01-08T19:05:38.1282309Z Stopping container: e5cc68857f9d_eateasy-backend.
+2026-01-08T19:05:38.1567016Z Deleting container: e5cc68857f9d_eateasy-backend. Retry count = 0
+2026-01-08T19:05:38.2401970Z Container spec TerminationMessagePolicy  path 
+2026-01-08T19:05:38.2403636Z Container is terminated. Total time elapsed: 112 ms.
+2026-01-08T19:05:38.2404816Z Site container: eateasy-backend terminated during site startup.
+2026-01-08T19:05:38.2509724Z Site startup probe failed after 8.1109888 seconds.
+2026-01-08T19:05:38.3054983Z Failed to start site. Revert by stopping site.
+2026-01-08T19:05:38.3075891Z Site: eateasy-backend stopped.
+2026-01-08T19:05:43.8234529Z Container start method called.
+2026-01-08T19:05:43.8246779Z Establishing network.
+2026-01-08T19:05:43.8252857Z Pulling image: appsvc/python:3.11_20251017.5.tuxprod.
+2026-01-08T19:05:43.9101163Z Container is starting.
+2026-01-08T19:05:43.9116668Z Establishing user namespace if not established already.
+2026-01-08T19:05:43.9123556Z Establishing network if not established already.
+2026-01-08T19:05:43.9129551Z Mounting volumes.
+2026-01-08T19:05:43.9139847Z Nested mountpoint 
+2026-01-08T19:05:43.9148772Z Nested mountpoint volatile/logs
+2026-01-08T19:05:43.9181676Z Nested mountpoint 
+2026-01-08T19:05:43.9221377Z Nested mountpoint 
+2026-01-08T19:05:43.9273239Z Nested mountpoint 
+2026-01-08T19:05:43.9903617Z Creating container.
+2026-01-08T19:05:43.9904985Z Creating pipes for streaming container io.
+2026-01-08T19:05:43.9906218Z Creating stdout named pipe at /podr/container/pipe/c890d81caf93_eateasy-backend/stdout_98e8898cf39b4d3b9120ce59ed32eaaa.
+2026-01-08T19:05:43.9910211Z Successfully created stdout named pipe at: /podr/container/pipe/c890d81caf93_eateasy-backend/stdout_98e8898cf39b4d3b9120ce59ed32eaaa.
+2026-01-08T19:05:43.9911916Z Opening named pipe /podr/container/pipe/c890d81caf93_eateasy-backend/stdout_98e8898cf39b4d3b9120ce59ed32eaaa for reading in non-blocking mode.
+2026-01-08T19:05:43.9913871Z Successfully opened named pipe: /podr/container/pipe/c890d81caf93_eateasy-backend/stdout_98e8898cf39b4d3b9120ce59ed32eaaa.
+2026-01-08T19:05:43.9915803Z Successfully removed non-blocking flag from /podr/container/pipe/c890d81caf93_eateasy-backend/stdout_98e8898cf39b4d3b9120ce59ed32eaaa.
+2026-01-08T19:05:43.9917655Z Creating stderr named pipe at /podr/container/pipe/c890d81caf93_eateasy-backend/stderr_1acbbaa620b241a7a1e4c61ea90b171a.
+2026-01-08T19:05:43.9919904Z Successfully created stderr named pipe at: /podr/container/pipe/c890d81caf93_eateasy-backend/stderr_1acbbaa620b241a7a1e4c61ea90b171a.
+2026-01-08T19:05:43.9921746Z Opening named pipe /podr/container/pipe/c890d81caf93_eateasy-backend/stderr_1acbbaa620b241a7a1e4c61ea90b171a for reading in non-blocking mode.
+2026-01-08T19:05:43.9923744Z Successfully opened named pipe: /podr/container/pipe/c890d81caf93_eateasy-backend/stderr_1acbbaa620b241a7a1e4c61ea90b171a.
+2026-01-08T19:05:43.9925540Z Successfully removed non-blocking flag from /podr/container/pipe/c890d81caf93_eateasy-backend/stderr_1acbbaa620b241a7a1e4c61ea90b171a.
+2026-01-08T19:05:43.9972567Z Creating container with image: appsvc/python:3.11_20251017.5.tuxprod from registry: 10.1.0.6:13209 and fully qualified image name: 10.1.0.6:13209/appsvc/python:3.11_20251017.5.tuxprod
+2026-01-08T19:05:44.1710880Z Starting container: c890d81caf93_eateasy-backend.
+2026-01-08T19:05:44.1983238Z Starting watchers and probes.
+2026-01-08T19:05:44.2009678Z Starting metrics collection.
+2026-01-08T19:05:44.2031417Z Container is running.
+2026-01-08T19:05:44.2272376Z Container start method finished after 403 ms.
+2026-01-08T19:05:52.5160033Z Container has finished running with exit code: 2.
+2026-01-08T19:05:52.5161754Z Container is terminating. Grace period: 5 seconds.
+2026-01-08T19:05:52.5164406Z Stop and delete container. Retry count = 0
+2026-01-08T19:05:52.5169233Z Stopping container: c890d81caf93_eateasy-backend.
+2026-01-08T19:05:52.5470430Z Deleting container: c890d81caf93_eateasy-backend. Retry count = 0
+2026-01-08T19:05:52.6484382Z Container spec TerminationMessagePolicy  path 
+2026-01-08T19:05:52.6486098Z Container is terminated. Total time elapsed: 132 ms.
+2026-01-08T19:05:52.6487477Z Site container: eateasy-backend terminated during site startup.
+2026-01-08T19:05:52.6522317Z Site startup probe failed after 8.4242109 seconds.
+2026-01-08T19:05:52.7243227Z Failed to start site. Revert by stopping site.
+2026-01-08T19:05:52.7251448Z Site: eateasy-backend stopped.
+2026-01-08T19:05:52.8651948Z Site: eateasy-backend will be blocked for 1 minutes till 01/08/2026 19:06:52
+2026-01-08T19:05:58.8022463Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:06:03.8601365Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:06:09.0034510Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:06:14.0711348Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:06:19.9519816Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:06:25.0016501Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:06:30.0736433Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:06:35.1335065Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:06:40.1849853Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:06:45.2479426Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:06:50.3201780Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:06:52.8656372Z Site: eateasy-backend is unblocked.
+2026-01-08T19:06:55.8881941Z Container start method called.
+2026-01-08T19:06:55.8883924Z Establishing network.
+2026-01-08T19:06:55.8885141Z Pulling image: appsvc/python:3.11_20251017.5.tuxprod.
+2026-01-08T19:06:56.0246476Z Container is starting.
+2026-01-08T19:06:56.0248882Z Establishing user namespace if not established already.
+2026-01-08T19:06:56.0250198Z Establishing network if not established already.
+2026-01-08T19:06:56.0251691Z Mounting volumes.
+2026-01-08T19:06:56.0273629Z Nested mountpoint 
+2026-01-08T19:06:56.0313186Z Nested mountpoint volatile/logs
+2026-01-08T19:06:56.0389747Z Nested mountpoint 
+2026-01-08T19:06:56.0397606Z Nested mountpoint 
+2026-01-08T19:06:56.0521287Z Nested mountpoint 
+2026-01-08T19:06:56.1209820Z Creating container.
+2026-01-08T19:06:56.1211267Z Creating pipes for streaming container io.
+2026-01-08T19:06:56.1212770Z Creating stdout named pipe at /podr/container/pipe/7fe0bd0cc9e8_eateasy-backend/stdout_359ddcfa07554d75bebcb4286a05d247.
+2026-01-08T19:06:56.1215065Z Successfully created stdout named pipe at: /podr/container/pipe/7fe0bd0cc9e8_eateasy-backend/stdout_359ddcfa07554d75bebcb4286a05d247.
+2026-01-08T19:06:56.1216368Z Opening named pipe /podr/container/pipe/7fe0bd0cc9e8_eateasy-backend/stdout_359ddcfa07554d75bebcb4286a05d247 for reading in non-blocking mode.
+2026-01-08T19:06:56.1217876Z Successfully opened named pipe: /podr/container/pipe/7fe0bd0cc9e8_eateasy-backend/stdout_359ddcfa07554d75bebcb4286a05d247.
+2026-01-08T19:06:56.1219125Z Successfully removed non-blocking flag from /podr/container/pipe/7fe0bd0cc9e8_eateasy-backend/stdout_359ddcfa07554d75bebcb4286a05d247.
+2026-01-08T19:06:56.1247998Z Creating stderr named pipe at /podr/container/pipe/7fe0bd0cc9e8_eateasy-backend/stderr_81599bfc1faa403f98b3c375f4451b91.
+2026-01-08T19:06:56.1250118Z Successfully created stderr named pipe at: /podr/container/pipe/7fe0bd0cc9e8_eateasy-backend/stderr_81599bfc1faa403f98b3c375f4451b91.
+2026-01-08T19:06:56.1251598Z Opening named pipe /podr/container/pipe/7fe0bd0cc9e8_eateasy-backend/stderr_81599bfc1faa403f98b3c375f4451b91 for reading in non-blocking mode.
+2026-01-08T19:06:56.1253472Z Successfully opened named pipe: /podr/container/pipe/7fe0bd0cc9e8_eateasy-backend/stderr_81599bfc1faa403f98b3c375f4451b91.
+2026-01-08T19:06:56.1254774Z Successfully removed non-blocking flag from /podr/container/pipe/7fe0bd0cc9e8_eateasy-backend/stderr_81599bfc1faa403f98b3c375f4451b91.
+2026-01-08T19:06:56.1256003Z Creating container with image: appsvc/python:3.11_20251017.5.tuxprod from registry: 10.1.0.6:13209 and fully qualified image name: 10.1.0.6:13209/appsvc/python:3.11_20251017.5.tuxprod
+2026-01-08T19:06:56.2819672Z Starting container: 7fe0bd0cc9e8_eateasy-backend.
+2026-01-08T19:06:56.3171347Z Starting watchers and probes.
+2026-01-08T19:06:56.3176641Z Starting metrics collection.
+2026-01-08T19:06:56.3178787Z Container is running.
+2026-01-08T19:06:57.3351094Z Container start method finished after 1439 ms.
+2026-01-08T19:07:04.5298896Z Container has finished running with exit code: 2.
+2026-01-08T19:07:04.5308419Z Container is terminating. Grace period: 5 seconds.
+2026-01-08T19:07:04.5319163Z Stop and delete container. Retry count = 0
+2026-01-08T19:07:04.5324280Z Stopping container: 7fe0bd0cc9e8_eateasy-backend.
+2026-01-08T19:07:04.5476686Z Deleting container: 7fe0bd0cc9e8_eateasy-backend. Retry count = 0
+2026-01-08T19:07:04.6356320Z Container spec TerminationMessagePolicy  path 
+2026-01-08T19:07:04.6358064Z Container is terminated. Total time elapsed: 104 ms.
+2026-01-08T19:07:04.6359460Z Site container: eateasy-backend terminated during site startup.
+2026-01-08T19:07:04.6421627Z Site startup probe failed after 7.3022202 seconds.
+2026-01-08T19:07:04.7013907Z Failed to start site. Revert by stopping site.
+2026-01-08T19:07:04.7017279Z Site: eateasy-backend stopped.
+2026-01-08T19:07:04.8305057Z Site: eateasy-backend will be blocked for 1 minutes till 01/08/2026 19:08:04
+2026-01-08T19:07:09.9935607Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:07:16.3230989Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:07:22.9318922Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:07:29.6512417Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:07:35.3696087Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:07:40.6673270Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:07:46.7127870Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:07:52.3145896Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:07:57.9276875Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:08:03.3872751Z Start site prohibitted because the site is being blocked.
+2026-01-08T19:08:04.8396708Z Site: eateasy-backend is unblocked.
+2026-01-08T19:08:13.2492675Z Container start method called.
+2026-01-08T19:08:13.2616420Z Establishing network.
+2026-01-08T19:08:13.2631873Z Pulling image: appsvc/python:3.11_20251017.5.tuxprod.
+2026-01-08T19:08:14.1579854Z Container is starting.
+2026-01-08T19:08:14.2093991Z Establishing user namespace if not established already.
+2026-01-08T19:08:14.2098352Z Establishing network if not established already.
+2026-01-08T19:08:14.2101676Z Mounting volumes.
+2026-01-08T19:08:14.2103810Z Nested mountpoint 
+2026-01-08T19:08:14.2984144Z Nested mountpoint volatile/logs
+2026-01-08T19:08:14.4352447Z Nested mountpoint 
+2026-01-08T19:08:14.4814588Z Nested mountpoint 
+2026-01-08T19:08:14.4900926Z Nested mountpoint 
+2026-01-08T19:08:17.1405263Z Creating container.
+2026-01-08T19:08:17.1977915Z Creating pipes for streaming container io.
+2026-01-08T19:08:17.2289477Z Creating stdout named pipe at /podr/container/pipe/177e690860dd_eateasy-backend/stdout_d7426feb1a9f4f71abc9c0727852e9e5.
+2026-01-08T19:08:17.2296538Z Successfully created stdout named pipe at: /podr/container/pipe/177e690860dd_eateasy-backend/stdout_d7426feb1a9f4f71abc9c0727852e9e5.
+2026-01-08T19:08:17.2298030Z Opening named pipe /podr/container/pipe/177e690860dd_eateasy-backend/stdout_d7426feb1a9f4f71abc9c0727852e9e5 for reading in non-blocking mode.
+2026-01-08T19:08:17.2345716Z Successfully opened named pipe: /podr/container/pipe/177e690860dd_eateasy-backend/stdout_d7426feb1a9f4f71abc9c0727852e9e5.
+2026-01-08T19:08:17.2419698Z Successfully removed non-blocking flag from /podr/container/pipe/177e690860dd_eateasy-backend/stdout_d7426feb1a9f4f71abc9c0727852e9e5.
+2026-01-08T19:08:17.2445277Z Creating stderr named pipe at /podr/container/pipe/177e690860dd_eateasy-backend/stderr_fdf6c537a9ae44fcbcc25e67dbe42a29.
+2026-01-08T19:08:17.2463793Z Successfully created stderr named pipe at: /podr/container/pipe/177e690860dd_eateasy-backend/stderr_fdf6c537a9ae44fcbcc25e67dbe42a29.
+2026-01-08T19:08:17.2465221Z Opening named pipe /podr/container/pipe/177e690860dd_eateasy-backend/stderr_fdf6c537a9ae44fcbcc25e67dbe42a29 for reading in non-blocking mode.
+2026-01-08T19:08:17.2467035Z Successfully opened named pipe: /podr/container/pipe/177e690860dd_eateasy-backend/stderr_fdf6c537a9ae44fcbcc25e67dbe42a29.
+2026-01-08T19:08:17.2469301Z Successfully removed non-blocking flag from /podr/container/pipe/177e690860dd_eateasy-backend/stderr_fdf6c537a9ae44fcbcc25e67dbe42a29.
+2026-01-08T19:08:17.2471201Z Creating container with image: appsvc/python:3.11_20251017.5.tuxprod from registry: 10.1.0.6:13209 and fully qualified image name: 10.1.0.6:13209/appsvc/python:3.11_20251017.5.tuxprod
+2026-01-08T19:08:20.4146436Z Starting container: 177e690860dd_eateasy-backend.
+2026-01-08T19:08:20.9351059Z Starting watchers and probes.
+2026-01-08T19:08:20.9760353Z Starting metrics collection.
+2026-01-08T19:08:21.0737698Z Container is running.
+2026-01-08T19:08:21.3273338Z Container start method finished after 8074 ms.
+2026-01-08T19:08:43.0511342Z Container has finished running with exit code: 2.
+2026-01-08T19:08:43.0526624Z Container is terminating. Grace period: 5 seconds.
+2026-01-08T19:08:43.0586282Z Stop and delete container. Retry count = 0
+2026-01-08T19:08:43.0618164Z Stopping container: 177e690860dd_eateasy-backend.
+2026-01-08T19:08:43.1101718Z Deleting container: 177e690860dd_eateasy-backend. Retry count = 0
+2026-01-08T19:08:43.2369174Z Container spec TerminationMessagePolicy  path 
+2026-01-08T19:08:43.2431223Z Container is terminated. Total time elapsed: 186 ms.
+2026-01-08T19:08:43.2470654Z Site container: eateasy-backend terminated during site startup.
+2026-01-08T19:08:43.2633852Z Site startup probe failed after 21.9198884 seconds.
+2026-01-08T19:08:43.3513619Z Failed to start site. Revert by stopping site.
+2026-01-08T19:08:43.3517523Z Site: eateasy-backend stopped.
