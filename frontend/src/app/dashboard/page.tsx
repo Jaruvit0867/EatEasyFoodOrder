@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { API_URL } from "../../config";
+import { checkAuth, logout } from "../../auth";
 
 const BACKEND_URL = API_URL;
 
@@ -56,6 +58,9 @@ type TabType = "stats" | "menu" | "logs";
 type ScopeType = "today" | "7days" | "30days" | "all";
 
 export default function DashboardPage() {
+    const router = useRouter();
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [authLoading, setAuthLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<TabType>("stats");
     const [scope, setScope] = useState<ScopeType>("7days");
     const [orderStats, setOrderStats] = useState<OrderStats | null>(null);
@@ -72,9 +77,24 @@ export default function DashboardPage() {
         base_price: 50,
         category: "standard"
     });
-    const [selectedCategory, setSelectedCategory] = useState<string>("all"); // Category filter state
+    const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
     const scopeDays = scope === "today" ? 1 : scope === "7days" ? 7 : scope === "30days" ? 30 : 365;
+
+    // Check authentication on mount
+    useEffect(() => {
+        const verifyAuth = async () => {
+            const authenticated = await checkAuth();
+            if (!authenticated) {
+                router.push("/login");
+            } else {
+                setIsAuthenticated(true);
+            }
+            setAuthLoading(false);
+        };
+        verifyAuth();
+    }, [router]);
+
 
     // Fetch order stats
     const fetchOrderStats = async () => {
@@ -245,6 +265,19 @@ export default function DashboardPage() {
         }
     };
 
+    // Show loading while checking auth
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
+                <div className="text-orange-500 text-xl animate-pulse">กำลังตรวจสอบสิทธิ์...</div>
+            </div>
+        );
+    }
+
+    if (!isAuthenticated) {
+        return null; // Will redirect
+    }
+
     return (
         <div className="min-h-screen bg-[#0f172a] text-white">
             {/* Header */}
@@ -256,14 +289,23 @@ export default function DashboardPage() {
                         </h1>
                         <p className="text-gray-500 text-sm">สถิติออเดอร์ และจัดการเมนู</p>
                     </div>
-                    <button
-                        onClick={handleResetOrders}
-                        className="px-4 py-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/30 rounded-lg text-sm font-bold transition-all flex items-center gap-2"
-                    >
-                        <span>🗑️</span> ล้างข้อมูลออเดอร์
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={handleResetOrders}
+                            className="px-4 py-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/30 rounded-lg text-sm font-bold transition-all flex items-center gap-2"
+                        >
+                            <span>🗑️</span> ล้างข้อมูล
+                        </button>
+                        <button
+                            onClick={logout}
+                            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-all flex items-center gap-2"
+                        >
+                            <span>🚪</span> ออกจากระบบ
+                        </button>
+                    </div>
                 </div>
             </header>
+
 
             {/* Tab Navigation */}
             <div className="bg-[#1e293b]/50 border-b border-gray-700/50">

@@ -15,9 +15,12 @@ from contextlib import asynccontextmanager
 from PIL import Image, ImageDraw, ImageFont
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Response, Cookie
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBasic
 from pydantic import BaseModel
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 
 # Load environment variables from .env file
 load_dotenv()
@@ -25,6 +28,16 @@ load_dotenv()
 # ============ Configuration (from environment variables) ============
 DATABASE_PATH = os.getenv("DATABASE_PATH", "orders.sqlite")
 THAI_TZ = timezone(timedelta(hours=7))
+
+# ============ Authentication Configuration ============
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "changeme123")  # CHANGE IN PRODUCTION!
+JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRE_HOURS = 24
+
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # ============ Ollama LLM Configuration ============
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
@@ -49,6 +62,7 @@ THAI_FONT_PATHS = [
 
 # ============ CORS Configuration ============
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,https://localhost:3000").split(",")
+
 
 # ============ Protein Keywords (Must match exactly) ============
 PROTEIN_KEYWORDS = ["หมู", "ไก่", "เนื้อ", "กุ้ง", "หมึก", "ปู", "ทะเล", "หมูกรอบ", "หมูสับ"]
@@ -1161,9 +1175,85 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ============ Authentication Helpers ============
+def create_access_token(username: str) -> str:
+    """Create JWT token for authenticated user"""
+    expire = datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRE_HOURS)
+    to_encode = {"sub": username, "exp": expire}
+    return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify password against hash"""
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    """Hash a password"""
+    return pwd_context.hash(password)
+
+async def get_current_user(auth_token: Optional[str] = Cookie(default=None)) -> Optional[str]:
+    """Get current user from JWT token in cookie"""
+    if not auth_token:
+        return None
+    try:
+        payload = jwt.decode(auth_token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            return None
+        return username
+    except JWTError:
+        return None
+
+async def require_auth(auth_token: Optional[str] = Cookie(default=None)) -> str:
+    """Dependency that requires authentication"""
+    user = await get_current_user(auth_token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user
+
+# ============ Authentication Endpoints ============
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+@app.post("/auth/login")
+async def login(request: LoginRequest, response: Response):
+    """Login with username and password, returns JWT in cookie"""
+    # Check credentials against environment variables
+    if request.username != ADMIN_USERNAME or request.password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    
+    # Create token
+    token = create_access_token(request.username)
+    
+    # Set cookie (httponly for security)
+    response.set_cookie(
+        key="auth_token",
+        value=token,
+        httponly=True,
+        secure=True,  # Only send over HTTPS
+        samesite="none",  # Allow cross-site requests
+        max_age=JWT_EXPIRE_HOURS * 3600
+    )
+    
+    return {"success": True, "message": "Login successful"}
+
+@app.get("/auth/verify")
+async def verify_auth(user: str = Depends(get_current_user)):
+    """Verify if current user is authenticated"""
+    if user:
+        return {"authenticated": True, "username": user}
+    return {"authenticated": False}
+
+@app.post("/auth/logout")
+async def logout(response: Response):
+    """Logout - clear auth cookie"""
+    response.delete_cookie("auth_token")
+    return {"success": True, "message": "Logged out"}
+
 # ============ Health Check ============
 @app.get("/")
 async def health_check():
+
     """Health check endpoint"""
     return {"status": "ok", "message": "Voice Order API is running", "version": "2.0.0"}
 

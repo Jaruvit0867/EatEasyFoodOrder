@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { API_URL } from "../../config";
+import { checkAuth, logout } from "../../auth";
 
 const BACKEND_URL = API_URL;
 
@@ -26,12 +28,29 @@ interface Order {
 }
 
 export default function KitchenPage() {
+    const router = useRouter();
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [authLoading, setAuthLoading] = useState(true);
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
 
+    // Check authentication on mount
+    useEffect(() => {
+        const verifyAuth = async () => {
+            const authenticated = await checkAuth();
+            if (!authenticated) {
+                router.push("/login");
+            } else {
+                setIsAuthenticated(true);
+            }
+            setAuthLoading(false);
+        };
+        verifyAuth();
+    }, [router]);
+
     const fetchOrders = async () => {
         try {
-            const res = await fetch(`${BACKEND_URL}/orders/pending`);
+            const res = await fetch(`${BACKEND_URL}/orders/pending`, { credentials: "include" });
             const data = await res.json();
             if (data.success) {
                 setOrders(data.orders);
@@ -45,7 +64,7 @@ export default function KitchenPage() {
 
     const handleComplete = async (orderId: number) => {
         try {
-            await fetch(`${BACKEND_URL}/orders/${orderId}/complete`, { method: "POST" });
+            await fetch(`${BACKEND_URL}/orders/${orderId}/complete`, { method: "POST", credentials: "include" });
             fetchOrders();
         } catch (error) {
             console.error("Error completing order:", error);
@@ -55,7 +74,7 @@ export default function KitchenPage() {
     const handleCancel = async (orderId: number) => {
         if (!confirm("ต้องการยกเลิกออเดอร์นี้?")) return;
         try {
-            await fetch(`${BACKEND_URL}/orders/${orderId}/cancel`, { method: "POST" });
+            await fetch(`${BACKEND_URL}/orders/${orderId}/cancel`, { method: "POST", credentials: "include" });
             fetchOrders();
         } catch (error) {
             console.error("Error cancelling order:", error);
@@ -63,15 +82,18 @@ export default function KitchenPage() {
     };
 
     useEffect(() => {
-        fetchOrders();
-        const interval = setInterval(fetchOrders, 5000); // Poll every 5 seconds
-        return () => clearInterval(interval);
-    }, []);
+        if (isAuthenticated) {
+            fetchOrders();
+            const interval = setInterval(fetchOrders, 5000);
+            return () => clearInterval(interval);
+        }
+    }, [isAuthenticated]);
 
     const formatTime = (dateString: string) => {
         const date = new Date(dateString);
         return date.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
     };
+
 
     const handlePrint = (order: Order) => {
         const printWindow = window.open("", "_blank", "width=400,height=600");
@@ -136,6 +158,19 @@ export default function KitchenPage() {
         printWindow.document.close();
     };
 
+    // Show loading while checking auth
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
+                <div className="text-orange-500 text-xl animate-pulse">กำลังตรวจสอบสิทธิ์...</div>
+            </div>
+        );
+    }
+
+    if (!isAuthenticated) {
+        return null;
+    }
+
     return (
         <div className="min-h-screen bg-[#0f172a] text-white p-8">
             <div className="w-full max-w-[1800px] mx-auto">
@@ -149,6 +184,12 @@ export default function KitchenPage() {
                             อัปเดตอัตโนมัติทุก 5 วินาที
                         </p>
                     </div>
+                    <button
+                        onClick={logout}
+                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-all flex items-center gap-2"
+                    >
+                        <span>🚪</span> ออกจากระบบ
+                    </button>
                 </div>
 
                 {loading && orders.length === 0 ? (
