@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { API_URL } from "../../config";
+import { checkAuth, logout } from "../../auth";
 
-const BACKEND_URL = "/api";
+const BACKEND_URL = API_URL;
 
 interface AddOn {
     name: string;
@@ -25,12 +28,29 @@ interface Order {
 }
 
 export default function KitchenPage() {
+    const router = useRouter();
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [authLoading, setAuthLoading] = useState(true);
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
 
+    // Check authentication on mount
+    useEffect(() => {
+        const verifyAuth = async () => {
+            const authenticated = await checkAuth();
+            if (!authenticated) {
+                router.push("/login");
+            } else {
+                setIsAuthenticated(true);
+            }
+            setAuthLoading(false);
+        };
+        verifyAuth();
+    }, [router]);
+
     const fetchOrders = async () => {
         try {
-            const res = await fetch(`${BACKEND_URL}/orders/pending`);
+            const res = await fetch(`${BACKEND_URL}/orders/pending`, { credentials: "include" });
             const data = await res.json();
             if (data.success) {
                 setOrders(data.orders);
@@ -44,7 +64,7 @@ export default function KitchenPage() {
 
     const handleComplete = async (orderId: number) => {
         try {
-            await fetch(`${BACKEND_URL}/orders/${orderId}/complete`, { method: "POST" });
+            await fetch(`${BACKEND_URL}/orders/${orderId}/complete`, { method: "POST", credentials: "include" });
             fetchOrders();
         } catch (error) {
             console.error("Error completing order:", error);
@@ -54,7 +74,7 @@ export default function KitchenPage() {
     const handleCancel = async (orderId: number) => {
         if (!confirm("ต้องการยกเลิกออเดอร์นี้?")) return;
         try {
-            await fetch(`${BACKEND_URL}/orders/${orderId}/cancel`, { method: "POST" });
+            await fetch(`${BACKEND_URL}/orders/${orderId}/cancel`, { method: "POST", credentials: "include" });
             fetchOrders();
         } catch (error) {
             console.error("Error cancelling order:", error);
@@ -62,15 +82,18 @@ export default function KitchenPage() {
     };
 
     useEffect(() => {
-        fetchOrders();
-        const interval = setInterval(fetchOrders, 5000); // Poll every 5 seconds
-        return () => clearInterval(interval);
-    }, []);
+        if (isAuthenticated) {
+            fetchOrders();
+            const interval = setInterval(fetchOrders, 5000);
+            return () => clearInterval(interval);
+        }
+    }, [isAuthenticated]);
 
     const formatTime = (dateString: string) => {
         const date = new Date(dateString);
         return date.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
     };
+
 
     const handlePrint = (order: Order) => {
         const printWindow = window.open("", "_blank", "width=400,height=600");
@@ -135,6 +158,19 @@ export default function KitchenPage() {
         printWindow.document.close();
     };
 
+    // Show loading while checking auth
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
+                <div className="text-orange-500 text-xl animate-pulse">กำลังตรวจสอบสิทธิ์...</div>
+            </div>
+        );
+    }
+
+    if (!isAuthenticated) {
+        return null;
+    }
+
     return (
         <div className="min-h-screen bg-[#0f172a] text-white p-8">
             <div className="w-full max-w-[1800px] mx-auto">
@@ -146,13 +182,14 @@ export default function KitchenPage() {
                         <p className="text-gray-400 text-sm flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                             อัปเดตอัตโนมัติทุก 5 วินาที
-                            {orders.length > 0 && (
-                                <span className="ml-2 bg-orange-500 text-white px-2 py-0.5 rounded-full text-xs font-bold">
-                                    {orders.length} รอดำเนินการ
-                                </span>
-                            )}
                         </p>
                     </div>
+                    <button
+                        onClick={logout}
+                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-all flex items-center gap-2"
+                    >
+                        <span>🚪</span> ออกจากระบบ
+                    </button>
                 </div>
 
                 {loading && orders.length === 0 ? (
@@ -166,90 +203,111 @@ export default function KitchenPage() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {orders.map((order) => (
-                            <div
-                                key={order.id}
-                                className="bg-[#1e293b] rounded-2xl p-0 border border-gray-700/50 shadow-2xl overflow-hidden hover:border-orange-500/30 transition-all group"
-                            >
-                                {/* Order Header */}
-                                <div className="bg-[#0f172a]/50 p-5 border-b border-gray-700/50 flex justify-between items-center">
-                                    <span className="bg-orange-500 text-white px-4 py-1.5 rounded-lg text-xl font-bold shadow-lg shadow-orange-500/20">
-                                        #{order.id}
-                                    </span>
-                                    <div className="text-right">
-                                        <div className="text-2xl font-mono text-white font-bold tracking-wider">
-                                            {formatTime(order.created_at)}
-                                        </div>
-                                    </div>
-                                </div>
+                        {orders.map((order) => {
+                            // Check if it's Takeaway (if any item has the note)
+                            const isTakeaway = order.items.some(item => item.note && item.note.includes("ใส่กล่องกลับบ้าน"));
 
-                                {/* Items List */}
-                                <div className="p-5 space-y-4">
-                                    {order.items.map((item, idx) => (
-                                        <div key={idx} className="flex justify-between items-start pb-4 border-b border-gray-700/30 last:border-0 last:pb-0">
-                                            <div className="flex items-start gap-4">
-                                                <div className="bg-slate-700 w-8 h-8 flex items-center justify-center rounded text-white font-bold text-lg shrink-0">
-                                                    {item.quantity}
-                                                </div>
-                                                <div>
-                                                    <div className="text-xl font-bold text-gray-200 leading-tight">
-                                                        {item.menu_name}
-                                                    </div>
-                                                    {item.add_ons.length > 0 && (
-                                                        <div className="flex flex-wrap gap-2 mt-2">
-                                                            {item.add_ons.map((addon, aIdx) => (
-                                                                <span
-                                                                    key={aIdx}
-                                                                    className="text-sm bg-green-900/30 text-green-400 px-2 py-0.5 rounded border border-green-500/20"
-                                                                >
-                                                                    + {addon.name}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                    {item.note && (
-                                                        <div className="text-red-400 text-sm mt-1 font-bold bg-red-900/20 px-2 py-0.5 rounded inline-block">
-                                                            * {item.note}
-                                                        </div>
-                                                    )}
-                                                </div>
+                            return (
+                                <div
+                                    key={order.id}
+                                    className={`rounded-2xl p-0 border shadow-2xl overflow-hidden transition-all group ${isTakeaway ? "bg-[#1e293b] border-orange-500/50" : "bg-[#1e293b] border-gray-700/50"}`}
+                                >
+                                    {/* Order Header */}
+                                    <div className={`p-4 border-b flex justify-between items-start ${isTakeaway ? "bg-orange-900/20 border-orange-500/30" : "bg-[#0f172a]/50 border-gray-700/50"}`}>
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="bg-white/10 text-white px-3 py-1 rounded-lg text-lg font-bold">
+                                                    #{order.id}
+                                                </span>
+                                                {isTakeaway ? (
+                                                    <span className="bg-orange-500 text-white px-2 py-1 rounded-lg text-sm font-bold flex items-center gap-1">
+                                                        🥡 กลับบ้าน
+                                                    </span>
+                                                ) : (
+                                                    <span className="bg-blue-500 text-white px-2 py-1 rounded-lg text-sm font-bold flex items-center gap-1">
+                                                        🍽️ ทานที่ร้าน
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="text-gray-400 text-sm font-mono">
+                                                {formatTime(order.created_at)}
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
+                                    </div>
 
-                                {/* Footer Actions */}
-                                <div className="p-5 bg-[#0f172a]/30 border-t border-gray-700/50">
-                                    <div className="flex justify-between items-end mb-4">
-                                        <span className="text-gray-500 text-sm">ยอดรวม</span>
-                                        <span className="text-3xl font-bold text-orange-400">{order.total_price}.-</span>
+                                    {/* Items List */}
+                                    <div className="p-5 space-y-4">
+                                        {order.items.map((item, idx) => {
+                                            // Remove "ใส่กล่องกลับบ้าน" from note since it's shown globally
+                                            const cleanNote = item.note?.replace("ใส่กล่องกลับบ้าน", "").replace(/,\s*$/, "").replace(/^,\s*/, "").trim();
+
+                                            return (
+                                                <div key={idx} className="flex justify-between items-start pb-4 border-b border-gray-700/30 last:border-0 last:pb-0">
+                                                    <div className="flex items-start gap-4">
+                                                        <div className="bg-slate-700 w-8 h-8 flex items-center justify-center rounded text-white font-bold text-lg shrink-0">
+                                                            {item.quantity}
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-xl font-bold text-gray-200 leading-tight">
+                                                                {item.menu_name}
+                                                            </div>
+                                                            {item.add_ons.length > 0 && (
+                                                                <div className="flex flex-wrap gap-2 mt-2">
+                                                                    {item.add_ons.map((addon, aIdx) => (
+                                                                        <span
+                                                                            key={aIdx}
+                                                                            className="text-sm bg-green-900/30 text-green-400 px-2 py-0.5 rounded border border-green-500/20"
+                                                                        >
+                                                                            + {addon.name}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                            {cleanNote && (
+                                                                <div className="text-red-400 text-sm mt-1 font-bold bg-red-900/20 px-2 py-0.5 rounded inline-block">
+                                                                    * {cleanNote}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <button
-                                            onClick={() => handleCancel(order.id)}
-                                            className="bg-red-500/20 hover:bg-red-500/40 text-red-400 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-1 text-sm"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                            ยกเลิก
-                                        </button>
-                                        <button
-                                            onClick={() => handlePrint(order)}
-                                            className="bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-1 text-sm"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                                            พิมพ์
-                                        </button>
-                                        <button
-                                            onClick={() => handleComplete(order.id)}
-                                            className="bg-green-600 hover:bg-green-500 text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-1 text-sm"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                            เสร็จแล้ว
-                                        </button>
+
+                                    {/* Footer Actions */}
+                                    <div className="p-5 bg-[#0f172a]/30 border-t border-gray-700/50">
+                                        <div className="flex justify-between items-end mb-4">
+                                            <span className="text-gray-500 text-sm">ยอดรวม</span>
+                                            <span className="text-3xl font-bold text-orange-400">{order.total_price}.-</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <button
+                                                onClick={() => handleCancel(order.id)}
+                                                className="bg-red-500/20 hover:bg-red-500/40 text-red-400 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-1 text-sm"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                ยกเลิก
+                                            </button>
+                                            <button
+                                                onClick={() => handlePrint(order)}
+                                                className="bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-1 text-sm"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                                                พิมพ์
+                                            </button>
+                                            <button
+                                                onClick={() => handleComplete(order.id)}
+                                                className="bg-green-600 hover:bg-green-500 text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-1 text-sm"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                                เสร็จแล้ว
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>

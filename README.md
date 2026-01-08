@@ -1,88 +1,86 @@
-# 🍛 ระบบสั่งอาหารด้วยเสียง (Voice-Controlled Ordering System)
+# EatEasy Food Order System
 
-ระบบสั่งอาหารสำหรับร้านข้าวแกง ใช้เสียงภาษาไทยในการสั่งอาหาร
+A voice-controlled food ordering system for Thai restaurants, designed for deployment on Azure.
 
-## 📋 คุณสมบัติ (Features)
+## System Architecture
 
-- 🎤 **สั่งอาหารด้วยเสียงภาษาไทย** - ใช้ Web Speech API สำหรับ Speech-to-Text (ไม่ต้องโหลดโมเดลหนัก)
-- 💡 **ระบบแนะนำเมนูอัจฉริยะ** - เมื่อสั่งผิดหรือไม่มีในเมนู ระบบจะแนะนำรายการที่ใกล้เคียง
-- 📊 **Dashboard เจ้าของร้าน** - ดูยอดขาย, จัดการเมนู, และดูประวัติออเดอร์ (Order Logs)
-- 📋 **ระบบจัดการเมนู** - เพิ่ม/ลด/แก้ไขราคา เมนูได้เองทันทีจากหน้า Dashboard
-- 👨‍🍳 **Kitchen Display** - หน้าจอสำหรับในครัว ดูออเดอร์ที่เข้ามาแบบ Real-time
-- 📱 **รองรับ Mobile/Tablet** - UI Responsive และรองรับการติดตั้ง PWA
-- ✅ **ยืนยันออเดอร์** - ตรวจสอบรายการและราคาก่อนสั่ง
-- 💾 **บันทึกลง SQLite** - เก็บข้อมูลออเดอร์และเมนูทั้งหมดในไฟล์เดียว
+- **Frontend**: Next.js 16 (Deployed on Azure Static Web Apps)
+- **Backend**: Python FastAPI (Deployed on Azure App Service)
+- **Database**: SQLite (Persisted via Azure Files Mount)
+- **Authentication**: JWT & LocalStorage (Single-user Admin System)
 
-## 🛠️ ข้อกำหนดระบบ (Prerequisites)
+## Features
 
-- **Python** 3.10 หรือสูงกว่า
-- **Node.js** 18 หรือสูงกว่า
-- **SSL Certificates** (สร้างอัตโนมัติด้วย script) - จำเป็นสำหรับการใช้ไมโครโฟนบนมือถือ
+- **Voice Ordering**: Customers can order using Thai voice commands via Web Speech API.
+- **Smart Menu**: Fuzzy matching and suggestions for menu items.
+- **Admin Dashboard**: Secure dashboard for viewing sales, managing menu items, and order history.
+- **Kitchen Display**: Real-time order view for kitchen staff.
+- **Authentication**: Secure login system for Dashboard and Kitchen views.
+- **Responsive Design**: Works on mobile, tablets, and desktop.
 
-## 🚀 การติดตั้งและรัน (Easy Setup & Run)
+## Deployment Instructions
 
-เรามี Script อัตโนมัติให้แล้ว ไม่ต้องพิมพ์คำสั่งยุ่งยาก!
+### 1. Backend (Azure App Service)
 
-### สำหรับ Mac / Linux
-1. **ติดตั้ง (ครั้งแรก):**
-   ```bash
-   ./easy_setup.sh
-   ```
-2. **รันโปรแกรม:**
-   ```bash
-   ./easy_run.sh
-   ```
+The backend is a Dockerized FastAPI application.
 
-### สำหรับ Windows
-1. **ติดตั้ง (ครั้งแรก):**
-   Double-click ไฟล์ `easy_setup.bat`
-2. **รันโปรแกรม:**
-   Double-click ไฟล์ `easy_run.bat`
+**Environment Variables Configuration:**
 
-> ⚠️ **หมายเหตุ**: เมื่อเปิดบนมือถือ ถ้าเจอ Security Warning เพราะ Self-signed Certificate ให้กด **Advanced -> Proceed** เพื่อใช้งานไมโครโฟนได้
+| Variable | Description | Example Value |
+|----------|-------------|---------------|
+| `DATABASE_PATH` | Path to persistent database file | `/data/orders.sqlite` |
+| `ADMIN_USERNAME` | Admin username for login | `admin` |
+| `ADMIN_PASSWORD` | Secure password for login | `your-secure-password` |
+| `JWT_SECRET` | Secret key for token generation | `random-secret-string` |
+| `ALLOWED_ORIGINS` | Frontend URL for CORS | `https://your-frontend.azurestaticapps.net` |
 
-## 📱 URL การใช้งาน
+**Persistent Storage Setup:**
 
-เมื่อโปรแกรมรันแล้ว จะบอก IP เครื่องให้ทันที เข้าผ่านมือถือได้เลย:
+To ensure data persistence (SQLite), you must mount an Azure File Share:
+1. Create an Azure Storage Account.
+2. Create a File Share named `data`.
+3. In App Service > Configuration > Path mappings, mount this share to `/data`.
+4. Set `DATABASE_PATH` to `/data/orders.sqlite`.
 
-- **ลูกค้าสั่งอาหาร:** `https://<YOUR_IP>:3000`
-- **Dashboard เจ้าของร้าน:** `https://<YOUR_IP>:3000/dashboard`
-- **หน้าจอครัว:** `https://<YOUR_IP>:3000/kitchen`
+### 2. Frontend (Azure Static Web Apps)
 
-*(อย่าลืมใช้ **HTTPS** เท่านั้น ไม่งั้นจะพูดไม่ได้)*
+The frontend is a Next.js Static Export application.
 
-## 📡 API Endpoints (Backend Port 8000)
+- Node.js Version: 20 (Specified in `.nvmrc` and `package.json`).
+- API Configuration: The frontend automatically detects the environment. In production, it connects to the backend URL defined in `src/config.ts`.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/menu-items` | รายการเมนูทั้งหมด |
-| POST | `/menu-items` | เพิ่มเมนูใหม่ |
-| POST | `/process-text-order` | ประมวลผลข้อความเสียง + แนะนำเมนู |
-| POST | `/confirm-order` | บันทึกออเดอร์ลง DB |
-| GET | `/orders` | ดูประวัติออเดอร์ทั้งหมด (Order Logs) |
-| GET | `/analytics/summary` | ดูยอดขายและสถิติ |
+## Authentication
 
-## 📁 โครงสร้างโปรเจค
+The system uses a single-user authentication model for simplicity.
+
+- **Login Page**: `/login`
+- **Protected Routes**: `/dashboard`, `/kitchen` (Redirects to login if unauthenticated)
+- **Public Routes**: `/` (Ordering page) requires login as well to prevent unauthorized access from external devices.
+
+**Credential Management:**
+Credentials are managed via Azure App Service Environment Variables (`ADMIN_USERNAME`, `ADMIN_PASSWORD`).
+
+## Printer Integration
+
+*Note: The thermal printer integration is currently configured for local network printing but requires further setup for cloud deployment (e.g., via a local print proxy or VPN endpoint). This feature is currently disabled in the production environment.*
+
+## Project Structure
 
 ```
 EatEasyFoodOrder/
 ├── backend/
-│   ├── main.py              # FastAPI server (Logic + DB)
-│   ├── requirements.txt     # Python libs
-│   └── orders.sqlite        # Database file
+│   ├── main.py              # FastAPI server & Logic
+│   ├── Dockerfile           # Backend container definition
+│   └── requirements.txt     # Python dependencies
 ├── frontend/
-│   ├── src/app/
-│   │   ├── page.tsx         # หน้าสั่งอาหาร (ลูกค้า)
-│   │   ├── dashboard/       # หน้าจัดการร้าน (เจ้าของ)
-│   │   └── kitchen/         # หน้าจอครัว
-│   ├── next.config.ts       # Config Proxy & SSL
+│   ├── src/
+│   │   ├── app/             # Next.js Pages (Order, Login, Dashboard, Kitchen)
+│   │   ├── auth.ts          # Authentication logic (LocalStorage + Headers)
+│   │   └── config.ts        # Runtime configuration
 │   └── package.json
-├── certificates/            # SSL Certs (Auto-generated)
-├── easy_setup.sh / .bat     # Setup Scripts
-├── easy_run.sh / .bat       # Run Scripts
 └── README.md
 ```
 
-## 📄 License
+## License
 
 MIT License

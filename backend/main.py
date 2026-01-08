@@ -7,18 +7,65 @@ import os
 import json
 import sqlite3
 import difflib
+import socket
+import requests  # For Ollama LLM API calls
 from datetime import datetime, timedelta, timezone
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from contextlib import asynccontextmanager
+from PIL import Image, ImageDraw, ImageFont
 
-from fastapi import FastAPI, HTTPException
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Depends, Response, Cookie
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBasic
 from pydantic import BaseModel
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 
-# ============ Configuration ============
-# ============ Configuration ============
-DATABASE_PATH = "orders.sqlite"
+# Load environment variables from .env file
+load_dotenv()
+
+# ============ Configuration (from environment variables) ============
+DATABASE_PATH = os.getenv("DATABASE_PATH", "orders.sqlite")
 THAI_TZ = timezone(timedelta(hours=7))
+
+# ============ Authentication Configuration ============
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "changeme123")  # CHANGE IN PRODUCTION!
+JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRE_HOURS = 24
+
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# ============ Ollama LLM Configuration ============
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")
+OLLAMA_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "15"))
+
+# ============ Printer Configuration ============
+PRINTER_ENABLED = os.getenv("PRINTER_ENABLED", "false").lower() == "true"
+PRINTER_IP = os.getenv("PRINTER_IP", "192.168.1.200")
+PRINTER_PORT = int(os.getenv("PRINTER_PORT", "9100"))
+PAPER_WIDTH = 576  # 80mm paper = ~576 pixels for full width
+THAI_FONT_PATHS = [
+    # Windows fonts (checked first)
+    "C:/Windows/Fonts/tahoma.ttf",
+    "C:/Windows/Fonts/cordia.ttc",
+    "C:/Windows/Fonts/angsana.ttc",
+    # macOS fonts
+    "/System/Library/Fonts/Supplemental/Thonburi.ttc",
+    "/System/Library/Fonts/Thonburi.ttc",
+    "/Library/Fonts/Thonburi.ttf",
+]
+
+# ============ CORS Configuration ============
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,https://localhost:3000").split(",")
+
+
+# ============ Protein Keywords (Must match exactly) ============
+PROTEIN_KEYWORDS = ["หมู", "ไก่", "เนื้อ", "กุ้ง", "หมึก", "ปู", "ทะเล", "หมูกรอบ", "หมูสับ"]
 
 # ============ Menu Cache (Loaded from DB on startup) ============
 MENU_CACHE = {
@@ -40,10 +87,10 @@ DEFAULT_MENU_ITEMS = [
     {"name": "ข้าวผัดกุ้ง", "keywords": "ข้าวผัด,กุ้ง", "base_price": 50, "category": "standard"},
     {"name": "ข้าวไข่เจียว", "keywords": "ไข่เจียว", "base_price": 50, "category": "standard"},
     {"name": "ข้าวไข่ดาว", "keywords": "ไข่ดาว", "base_price": 50, "category": "standard"},
-    {"name": "ข้าวทอดกระเทียมหมู", "keywords": "กระเทียม,ทอดกระเทียม,หมู", "base_price": 50, "category": "standard"},
-    {"name": "ข้าวทอดกระเทียมไก่", "keywords": "กระเทียม,ทอดกระเทียม,ไก่", "base_price": 50, "category": "standard"},
+    {"name": "ข้าวหมูทอดกระเทียม", "keywords": "กระเทียม,ทอดกระเทียม,หมู", "base_price": 50, "category": "standard"},
+    {"name": "ข้าวไก่ทอดกระเทียม", "keywords": "กระเทียม,ทอดกระเทียม,ไก่", "base_price": 50, "category": "standard"},
     {"name": "ข้าวผัดคะน้าหมู", "keywords": "คะน้า,ผัดคะน้า,หมู", "base_price": 50, "category": "standard"},
-    {"name": "ข้าวผัดผักบุ้งหมู", "keywords": "ผักบุ้ง,ผัดผักบุ้ง,หมู", "base_price": 50, "category": "standard"},
+    {"name": "ผัดผักบุ้งหมูราดข้าว", "keywords": "ผักบุ้ง,ผัดผักบุ้ง,หมู", "base_price": 50, "category": "standard"},
     {"name": "ข้าวผัดซีอิ๊วหมู", "keywords": "ผัดซีอิ๊ว,หมู", "base_price": 50, "category": "standard"},
     {"name": "ข้าวราดหน้าหมู", "keywords": "ราดหน้า,หมู", "base_price": 50, "category": "standard"},
     {"name": "ก๋วยเตี๋ยวคั่วไก่", "keywords": "ก๋วยเตี๋ยวคั่วไก่,ก๋วยเตี๋ยว,คั่วไก่", "base_price": 50, "category": "standard"},
@@ -58,7 +105,7 @@ DEFAULT_MENU_ITEMS = [
     {"name": "ข้าวกะเพราเนื้อ", "keywords": "กะเพรา,กระเพรา,เนื้อ", "base_price": 60, "category": "premium"},
     {"name": "ข้าวกะเพราหมูกรอบ", "keywords": "กะเพรา,กระเพรา,หมูกรอบ", "base_price": 60, "category": "premium"},
     {"name": "ข้าวผัดเนื้อ", "keywords": "ข้าวผัด,เนื้อ", "base_price": 60, "category": "premium"},
-    {"name": "ข้าวทอดกระเทียมหมูกรอบ", "keywords": "กระเทียม,ทอดกระเทียม,หมูกรอบ", "base_price": 60, "category": "premium"},
+    {"name": "ข้าวหมูกรอบทอดกระเทียม", "keywords": "กระเทียม,ทอดกระเทียม,หมูกรอบ", "base_price": 60, "category": "premium"},
     {"name": "ลาบหมู", "keywords": "ลาบ,หมู", "base_price": 60, "category": "premium"},
     {"name": "ลาบไก่", "keywords": "ลาบ,ไก่", "base_price": 60, "category": "premium"},
     {"name": "ลาบเนื้อ", "keywords": "ลาบ,เนื้อ", "base_price": 60, "category": "premium"},
@@ -69,7 +116,7 @@ DEFAULT_MENU_ITEMS = [
     {"name": "ข้าวผัดปู", "keywords": "ข้าวผัด,ปู", "base_price": 55, "category": "special"},
     {"name": "ข้าวกะเพราปู", "keywords": "กะเพรา,กระเพรา,ปู", "base_price": 70, "category": "special"},
     {"name": "ข้าวไข่เจียวปู", "keywords": "ไข่เจียว,ปู", "base_price": 60, "category": "special"},
-    {"name": "ข้าวปูผัดผงกะหรี่", "keywords": "ปู,ผัดผงกะหรี่,ผงกะหรี่", "base_price": 60, "category": "special"},
+    {"name": "ข้าวหน้าปูผัดผงกะหรี่", "keywords": "ปู,ผัดผงกะหรี่,ผงกะหรี่", "base_price": 60, "category": "special"},
     
     # Seafood dishes
     {"name": "ผัดซีอิ๊วทะเล", "keywords": "ผัดซีอิ๊ว,ทะเล", "base_price": 60, "category": "special"},
@@ -300,6 +347,173 @@ def save_order_to_db(items: list[OrderItem], total_price: int) -> int:
     conn.commit()
     conn.close()
     return order_id
+
+# ============ Printer Functions ============
+def get_thai_font(size=24):
+    """Load Thai font from system fonts."""
+    for path in THAI_FONT_PATHS:
+        try:
+            return ImageFont.truetype(path, size)
+        except:
+            continue
+    return ImageFont.load_default()
+
+def text_to_image(text: str, font_size: int = 24, center: bool = False, bold: bool = False) -> Image.Image:
+    """Render Thai text as a black-and-white image."""
+    font = get_thai_font(font_size)
+    
+    # Calculate text size
+    dummy_img = Image.new('1', (1, 1))
+    dummy_draw = ImageDraw.Draw(dummy_img)
+    bbox = dummy_draw.textbbox((0, 0), text, font=font)
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]
+    
+    # Use full paper width for centering
+    img_width = PAPER_WIDTH
+    img_height = text_height + 12
+    img = Image.new('1', (img_width, img_height), color=1)
+    draw = ImageDraw.Draw(img)
+    
+    if center:
+        x = (img_width - text_width) // 2
+    else:
+        x = 10
+    
+    # Draw text (multiple times for bold effect)
+    draw.text((x, 0), text, font=font, fill=0)
+    if bold:
+        draw.text((x+1, 0), text, font=font, fill=0)
+        draw.text((x, 1), text, font=font, fill=0)
+    
+    return img
+
+def image_to_escpos(img: Image.Image) -> bytes:
+    """Convert PIL Image to ESC/POS raster bitmap command."""
+    if img.width > PAPER_WIDTH:
+        ratio = PAPER_WIDTH / img.width
+        img = img.resize((PAPER_WIDTH, int(img.height * ratio)))
+    
+    width = (img.width + 7) // 8 * 8
+    height = img.height
+    img = img.convert('1')
+    pixels = img.load()
+    
+    data = bytearray()
+    for y in range(height):
+        for x_byte in range(width // 8):
+            byte = 0
+            for bit in range(8):
+                x = x_byte * 8 + bit
+                if x < img.width and pixels[x, y] == 0:
+                    byte |= (0x80 >> bit)
+            data.append(byte)
+    
+    xL = (width // 8) & 0xFF
+    xH = ((width // 8) >> 8) & 0xFF
+    yL = height & 0xFF
+    yH = (height >> 8) & 0xFF
+    
+    return b'\x1d\x76\x30\x00' + bytes([xL, xH, yL, yH]) + bytes(data)
+
+def separator_image() -> Image.Image:
+    """Create a centered separator line as image."""
+    line = "=" * 40
+    return text_to_image(line, font_size=20, center=True)
+
+def print_order_receipt(order_id: int, items: list, total_price: int):
+    """Print order receipt to thermal printer using image rendering.
+    Format matches the kitchen display slip style with larger fonts.
+    """
+    # Skip printing if disabled via environment variable
+    if not PRINTER_ENABLED:
+        print(f"[Printer] Printing disabled - Order #{order_id} not printed")
+        return False
+    
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(5)
+        sock.connect((PRINTER_IP, PRINTER_PORT))
+        
+        # Reset & Disable Chinese mode
+        sock.sendall(b'\x1c\x2e')  # Cancel Chinese
+        sock.sendall(b'\x1b\x40')  # Reset
+        
+        # === HEADER (Centered, Bold) ===
+        sock.sendall(image_to_escpos(text_to_image("เจ๊ดา อาหารตามสั่ง", font_size=44, center=True, bold=True)))
+        sock.sendall(image_to_escpos(text_to_image("Original Thai Food", font_size=26, center=True)))
+        sock.sendall(b'\n')
+        
+        # === ORDER INFO ===
+        sock.sendall(image_to_escpos(separator_image()))
+        sock.sendall(image_to_escpos(text_to_image(f"ORDER: #{order_id}", font_size=38, center=True, bold=True)))
+        created_at = datetime.now(THAI_TZ).strftime("%d/%m/%Y %H:%M")
+        sock.sendall(image_to_escpos(text_to_image(f"DATE: {created_at}", font_size=28, center=True)))
+        
+        # === ORDER TYPE (Takeaway/Dine-in) ===
+        is_takeaway = any("ใส่กล่องกลับบ้าน" in (item.get('note') or '') for item in items)
+        if is_takeaway:
+            sock.sendall(image_to_escpos(text_to_image("ใส่กล่องกลับบ้าน", font_size=36, center=True, bold=True)))
+        else:
+            sock.sendall(image_to_escpos(text_to_image("ทานที่ร้าน", font_size=36, center=True, bold=True)))
+        
+        sock.sendall(image_to_escpos(separator_image()))
+        sock.sendall(b'\n')
+        
+        # === ITEMS (Large font, Bold) ===
+        for item in items:
+            menu_name = item.get('menu_name', str(item))
+            quantity = item.get('quantity', 1)
+            price = item.get('price', 0)
+            add_ons = item.get('add_ons', [])
+            note = item.get('note') or ''
+            # Clean note (remove takeaway indicator since it's shown globally)
+            clean_note = note.replace("ใส่กล่องกลับบ้าน", "").replace(",", " ").strip()
+            
+            # Main item (Large, Bold)
+            line = f"{quantity}x {menu_name}"
+            sock.sendall(image_to_escpos(text_to_image(line, font_size=36, bold=True)))
+            
+            # Price line
+            if price:
+                sock.sendall(image_to_escpos(text_to_image(f"   ราคา: {price}.-", font_size=30)))
+            
+            # Add-ons (Large for elderly)
+            for addon in add_ons:
+                addon_name = addon.get('name', str(addon))
+                addon_price = addon.get('price', 0)
+                addon_line = f"   + {addon_name} (+{addon_price})"
+                sock.sendall(image_to_escpos(text_to_image(addon_line, font_size=28)))
+            
+            # Note (Large for elderly) - only show if has content after cleaning
+            if clean_note:
+                note_line = f"   * {clean_note}"
+                sock.sendall(image_to_escpos(text_to_image(note_line, font_size=28)))
+            
+            sock.sendall(b'\n')
+        
+        # === TOTAL (Extra Large, Centered, Bold) ===
+        sock.sendall(b'\n')
+        sock.sendall(image_to_escpos(separator_image()))
+        sock.sendall(b'\n')
+        sock.sendall(image_to_escpos(text_to_image(f"TOTAL: {total_price} B", font_size=40, center=True, bold=True)))
+        sock.sendall(b'\n')
+        sock.sendall(image_to_escpos(separator_image()))
+        
+        # === FOOTER ===
+        sock.sendall(b'\n')
+        sock.sendall(image_to_escpos(text_to_image("* THANK YOU *", font_size=30, center=True)))
+        
+        # Feed and cut
+        sock.sendall(b'\n\n\n\x1d\x56\x42\x00')
+        
+        sock.close()
+        print(f"[Printer] Order #{order_id} printed successfully")
+        return True
+        
+    except Exception as e:
+        print(f"[Printer] Error printing order #{order_id}: {e}")
+        return False
 
 def get_pending_orders():
     """Retrieve pending orders for kitchen display"""
@@ -586,6 +800,211 @@ def get_order_statistics(days: int = 7):
     }
 
 
+# ============ Two-Stage Verification Helpers ============
+def extract_proteins_from_text(text: str) -> List[str]:
+    """Extract protein keywords from user input"""
+    found = []
+    # Check longer keywords first (หมูกรอบ before หมู)
+    sorted_proteins = sorted(PROTEIN_KEYWORDS, key=len, reverse=True)
+    for protein in sorted_proteins:
+        if protein in text:
+            found.append(protein)
+            # Remove to avoid double counting (หมูกรอบ contains หมู)
+            text = text.replace(protein, "")
+    return found
+
+
+def score_menu_with_confidence(transcript: str, menu_items: list) -> Tuple[Optional[dict], int, List[dict]]:
+    """
+    Score menu items and return (best_match, confidence_score, top_candidates).
+    Confidence: 0-100
+    - 90+: Exact match or protein matches perfectly
+    - 50-89: Partial match, needs verification
+    - <50: Too ambiguous, show suggestions
+    """
+    clean_text = transcript.replace("เอา", "").replace("ขอ", "").replace("หน่อย", "").replace("ครับ", "").replace("ค่ะ", "").strip()
+    
+    # === Text Normalization: Handle common spelling variations ===
+    clean_text = clean_text.replace("กระเพราะ", "กะเพรา")  # Common typo
+    clean_text = clean_text.replace("กระเพรา", "กะเพรา")   # Alternative spelling
+    
+    user_proteins = extract_proteins_from_text(clean_text)
+    
+    # === Special Partial Match Rules ===
+    # Handle abbreviated/partial orders that customers commonly use
+    partial_match_rules = {
+        "ผัดผักบุ้ง": "ผัดผักบุ้งหมูราดข้าว",  # Short form → Full menu name
+        "ข้าวไข่เจียวหมูสับ": "ข้าวไข่เจียว",   # ข้าวไข่เจียว with หมูสับ as note
+    }
+    
+    for short_form, full_name in partial_match_rules.items():
+        # Only match if it's the EXACT short form, not part of a longer phrase
+        # e.g. "ผัดผักบุ้ง" matches but "ผัดผักบุ้งหมูกรอบ" should NOT match
+        if clean_text == short_form or transcript.strip() == short_form:
+            for item in menu_items:
+                if item["name"] == full_name:
+                    return item, 95, [{"item": item, "score": 95}]
+    
+    scored_items = []
+    
+    for item in menu_items:
+        score = 0
+        protein_match = True
+        
+        # 1. Check if menu name is substring of input or vice versa (high confidence)
+        if item["name"] in transcript or clean_text in item["name"]:
+            score += 50
+        
+        # 2. Keyword matching (bag of words, order doesn't matter)
+        item_keywords = item.get("keywords", [])
+        matched_keywords = 0
+        for keyword in item_keywords:
+            if keyword in clean_text:
+                score += len(keyword) * 2
+                matched_keywords += 1
+        
+        # 3. Protein validation (CRITICAL)
+        item_name = item["name"]
+        item_proteins = extract_proteins_from_text(item_name)
+        
+        if user_proteins:
+            # User specified a protein - item MUST have matching protein
+            if not any(p in item_proteins for p in user_proteins):
+                protein_match = False
+            # Check for conflicting proteins
+            for user_p in user_proteins:
+                for item_p in item_proteins:
+                    if user_p != item_p and user_p in PROTEIN_KEYWORDS[:7] and item_p in PROTEIN_KEYWORDS[:7]:
+                        # Conflicting proteins (หมู vs ไก่ etc.)
+                        protein_match = False
+        
+        if protein_match:
+            score += 30  # Bonus for matching protein
+        else:
+            score = 0  # Zero out score if protein doesn't match
+        
+        if score > 0:
+            scored_items.append({
+                "item": item,
+                "score": score,
+                "protein_match": protein_match,
+                "keywords_matched": matched_keywords
+            })
+    
+    # Sort by score descending, then by name length ascending (prefer shorter/more specific names)
+    scored_items.sort(key=lambda x: (-x["score"], len(x["item"]["name"])))
+    
+    if not scored_items:
+        return None, 0, []
+    
+    best = scored_items[0]
+    best_score = best["score"]
+    
+    # Calculate confidence
+    confidence = min(best_score, 100)
+    
+    # Check for ties (ambiguity)
+    if len(scored_items) > 1:
+        second_score = scored_items[1]["score"]
+        if second_score >= best_score * 0.9:  # Very close scores = ambiguous
+            confidence = min(confidence, 60)
+    
+    return best["item"], confidence, scored_items[:5]
+
+
+def verify_match_with_llm(user_text: str, candidate_item: dict) -> bool:
+    """Use LLM to verify if the candidate match is correct"""
+    try:
+        prompt = f"""ตรวจสอบว่าการจับคู่นี้ถูกต้องหรือไม่:
+ลูกค้าพูด: "{user_text}"
+ระบบเลือก: "{candidate_item['name']}"
+
+ตอบแค่ "ถูก" หรือ "ผิด" เท่านั้น"""
+
+        response = requests.post(
+            OLLAMA_URL,
+            json={
+                "model": OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False,
+                "options": {"temperature": 0.1, "num_predict": 20}
+            },
+            timeout=OLLAMA_TIMEOUT
+        )
+        response.raise_for_status()
+        
+        result = response.json().get("response", "").strip()
+        return "ถูก" in result
+    except Exception as e:
+        print(f"[LLM Verify Error] {e}")
+        return True  # On error, trust keyword matching
+
+
+def ask_llm_to_parse(user_text: str, menu_items: list) -> Optional[dict]:
+    """Use LLM to parse order when keyword matching fails"""
+    try:
+        # Build compact menu list
+        menu_lines = [f"{item['id']}|{item['name']}" for item in menu_items[:30]]  # Limit to 30 for speed
+        menu_str = "\n".join(menu_lines)
+        
+        prompt = f"""คุณคือผู้ช่วยรับออเดอร์ร้านอาหาร
+
+เมนู:
+{menu_str}
+
+ลูกค้าสั่ง: "{user_text}"
+
+หาเมนูที่ตรงกับที่ลูกค้าสั่ง ตอบเป็น ID เท่านั้น (ตัวเลข)
+ถ้าไม่มีเมนูตรง ตอบ 0"""
+
+        response = requests.post(
+            OLLAMA_URL,
+            json={
+                "model": OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False,
+                "options": {"temperature": 0.1, "num_predict": 20}
+            },
+            timeout=OLLAMA_TIMEOUT
+        )
+        response.raise_for_status()
+        
+        result = response.json().get("response", "").strip()
+        print(f"[LLM Parse] Result: {result}")
+        
+        # Try to extract ID from response
+        import re
+        match = re.search(r'\d+', result)
+        if match:
+            menu_id = int(match.group())
+            if menu_id > 0:
+                for item in menu_items:
+                    if item.get("id") == menu_id:
+                        return item
+        
+        # Fallback: Try to match by name if LLM returned a name
+        # First try exact match
+        for item in menu_items:
+            if item["name"] == result:
+                return item
+        
+        # Then try finding longest matching name (to prefer ข้าวกะเพราหมูกรอบ over ข้าวกะเพราหมู)
+        best_match = None
+        best_len = 0
+        for item in menu_items:
+            if item["name"] in result:
+                if len(item["name"]) > best_len:
+                    best_len = len(item["name"])
+                    best_match = item
+        if best_match:
+            return best_match
+        
+        return None
+    except Exception as e:
+        print(f"[LLM Parse Error] {e}")
+        return None
+
+
 # ============ Order Parsing (using cache) ============
 def process_order(transcript: str) -> Optional[OrderItem]:
     """Parse order using cached menu data (note is added separately via frontend)"""
@@ -747,18 +1166,88 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS configuration for frontend access
+# CORS configuration for frontend access (origins from environment variable)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# ============ Authentication Helpers ============
+def create_access_token(username: str) -> str:
+    """Create JWT token for authenticated user"""
+    expire = datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRE_HOURS)
+    to_encode = {"sub": username, "exp": expire}
+    return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+def get_token_from_header(authorization: Optional[str] = None) -> Optional[str]:
+    """Extract token from Authorization header"""
+    if not authorization:
+        return None
+    parts = authorization.split()
+    if len(parts) == 2 and parts[0].lower() == "bearer":
+        return parts[1]
+    return None
+
+from fastapi import Header
+
+async def get_current_user(authorization: Optional[str] = Header(default=None)) -> Optional[str]:
+    """Get current user from JWT token in Authorization header"""
+    token = get_token_from_header(authorization)
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            return None
+        return username
+    except JWTError:
+        return None
+
+async def require_auth(authorization: Optional[str] = Header(default=None)) -> str:
+    """Dependency that requires authentication"""
+    user = await get_current_user(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user
+
+# ============ Authentication Endpoints ============
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+@app.post("/auth/login")
+async def login(request: LoginRequest):
+    """Login with username and password, returns JWT token"""
+    # Check credentials against environment variables
+    if request.username != ADMIN_USERNAME or request.password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    
+    # Create token
+    token = create_access_token(request.username)
+    
+    # Return token in response body (for localStorage storage)
+    return {"success": True, "message": "Login successful", "token": token}
+
+@app.get("/auth/verify")
+async def verify_auth(user: str = Depends(get_current_user)):
+    """Verify if current user is authenticated"""
+    if user:
+        return {"authenticated": True, "username": user}
+    return {"authenticated": False}
+
+@app.post("/auth/logout")
+async def logout():
+    """Logout - client should remove token from localStorage"""
+    return {"success": True, "message": "Logged out"}
+
 # ============ Health Check ============
 @app.get("/")
 async def health_check():
+
     """Health check endpoint"""
     return {"status": "ok", "message": "Voice Order API is running", "version": "2.0.0"}
 
@@ -768,10 +1257,16 @@ class TextOrderRequest(BaseModel):
 
 @app.post("/process-text-order", response_model=OrderResponse)
 async def process_text_order(request: TextOrderRequest):
-    """Process order from text (from Web Speech API)"""
+    """Process order from text using Two-Stage Verification"""
     try:
         transcript = request.transcript.strip()
-        print(f"Processing text order: {transcript}")
+        
+        # === Global Text Normalization ===
+        # Fix common Thai spelling variations BEFORE any processing
+        transcript = transcript.replace("กระเพราะ", "กะเพรา")
+        transcript = transcript.replace("กระเพรา", "กะเพรา")
+        
+        print(f"[V2] Processing: {transcript}")
         
         if not transcript:
             return OrderResponse(success=False, error="ไม่มีข้อความที่จะประมวลผล")
@@ -784,31 +1279,114 @@ async def process_text_order(request: TextOrderRequest):
                 success=False,
                 transcript=transcript,
                 error=f"❌ {sold_out_item} หมดแล้วครับ",
-                suggestions=[]  # Don't suggest alternatives for sold-out items
+                suggestions=[]
             )
         
-        item = process_order(transcript)
-        print(f"Found item: {item.menu_name if item else 'None'}")
+        # === STAGE 1: Keyword Matching with Confidence ===
+        best_match, confidence, candidates = score_menu_with_confidence(transcript, MENU_CACHE["items"])
+        print(f"[V2] Confidence: {confidence}%, Best: {best_match['name'] if best_match else 'None'}")
         
-        if not item:
-            # Try to get suggestions
-            suggestions = get_suggestions(transcript)
-            error_msg = "ไม่พบรายการอาหารในคำสั่ง"
-            if suggestions:
-                error_msg = "ไม่พบรายการอาหารที่ระบุ แต่มีรายการที่ใกล้เคียง..."
-
-            return OrderResponse(
-                success=False,
-                transcript=transcript,
-                error=error_msg,
-                suggestions=suggestions
-            )
+        if not best_match or confidence < 30:
+            # Check if input is too short/ambiguous (just a protein keyword)
+            clean_input = transcript.replace("เอา", "").replace("ขอ", "").replace("หน่อย", "").replace("ครับ", "").strip()
+            is_just_protein = clean_input in PROTEIN_KEYWORDS or len(clean_input) < 8
+            
+            if not is_just_protein:
+                # Try LLM parsing as fallback before showing suggestions
+                print(f"[V2] Low confidence ({confidence}%), trying LLM parsing...")
+                llm_match = ask_llm_to_parse(transcript, MENU_CACHE["items"])
+                if llm_match:
+                    print(f"[V2] LLM found match: {llm_match['name']}")
+                    best_match = llm_match
+                    confidence = 80  # Trust LLM match
+            
+            if not best_match or confidence < 30:
+                # LLM also couldn't parse OR input was too short - show suggestions
+                suggestions = [c["item"]["name"] for c in candidates] if candidates else get_suggestions(transcript)
+                return OrderResponse(
+                    success=False,
+                    transcript=transcript,
+                    error="ไม่พบรายการที่ตรงกัน กรุณาเลือกจากรายการด้านล่าง",
+                    suggestions=suggestions[:8]
+                )
+        
+        # === STAGE 2: LLM Verification for Medium Confidence ===
+        if 30 <= confidence < 85:
+            # Check if input is too short/ambiguous (just a protein keyword)
+            clean_input = transcript.replace("เอา", "").replace("ขอ", "").replace("หน่อย", "").replace("ครับ", "").strip()
+            is_just_protein = clean_input in PROTEIN_KEYWORDS or len(clean_input) < 8
+            
+            if is_just_protein:
+                # Too ambiguous - show suggestions instead of trusting LLM
+                print(f"[V2] Input too short/ambiguous, showing suggestions")
+                suggestions = get_suggestions(transcript)
+                return OrderResponse(
+                    success=False,
+                    transcript=transcript,
+                    error="รายการคลุมเครือ กรุณาเลือกจากรายการด้านล่าง",
+                    suggestions=suggestions[:8]
+                )
+            
+            print(f"[V2] Medium confidence ({confidence}%), calling LLM to verify...")
+            is_correct = verify_match_with_llm(transcript, best_match)
+            if not is_correct:
+                # LLM rejected, but if keyword matching had decent confidence (>50%), trust it anyway
+                # LLM parsing is unreliable and often returns wrong results
+                if confidence >= 50:
+                    print(f"[V2] LLM rejected but confidence {confidence}% is good, trusting keyword match")
+                    # Continue with keyword match result
+                else:
+                    # Low confidence AND LLM rejected - show suggestions
+                    print(f"[V2] LLM rejected and low confidence, showing suggestions")
+                    suggestions = [c["item"]["name"] for c in candidates] if candidates else get_suggestions(transcript)
+                    return OrderResponse(
+                        success=False,
+                        transcript=transcript,
+                        error="ระบบไม่แน่ใจ กรุณาเลือกจากรายการด้านล่าง",
+                        suggestions=suggestions[:8]
+                    )
+            else:
+                print(f"[V2] LLM confirmed match!")
+        
+        # === Create Order Item ===
+        add_ons = []
+        is_gap_khao = False
+        
+        if "กับข้าว" in transcript:
+            is_gap_khao = True
+            add_ons.append(AddOn(name="กับข้าว", price=ADD_ONS["กับข้าว"]["price"], selected=True))
+        
+        for addon_name, addon_info in ADD_ONS.items():
+            if addon_name == "กับข้าว":
+                continue
+            if addon_name in transcript and addon_name not in best_match["name"]:
+                add_ons.append(AddOn(name=addon_name, price=addon_info["price"], selected=True))
+        
+        menu_name = best_match["name"]
+        base_price = best_match["base_price"]
+        
+        if is_gap_khao:
+            menu_name = menu_name.replace("ข้าว", "") + " (กับข้าว)"
+        
+        total = base_price + sum(a.price for a in add_ons)
+        
+        # === Extract extra keywords as Note (exclude those already in add_ons) ===
+        note = None
+        addon_names = [a.name for a in add_ons]  # Get list of add-on names already added
+        extra_keywords = ["หมูสับ", "ไม่เผ็ด", "เผ็ดมาก", "น้ำข้น"]  # Only non-addon keywords
+        for extra in extra_keywords:
+            if extra in transcript and extra not in menu_name and extra not in addon_names:
+                note = extra
+                break
+        
+        item = OrderItem(menu_name=menu_name, quantity=1, price=total, add_ons=add_ons, note=note)
+        print(f"[V2] Success: {menu_name} (${total})")
         
         return OrderResponse(
             success=True,
             transcript=transcript,
             items=[item],
-            total_price=item.price or 0
+            total_price=total
         )
         
     except Exception as e:
@@ -817,9 +1395,17 @@ async def process_text_order(request: TextOrderRequest):
 
 @app.post("/confirm-order", response_model=ConfirmOrderResponse)
 async def confirm_order(request: ConfirmOrderRequest):
-    """Save confirmed order to database"""
+    """Save confirmed order to database and print receipt"""
     try:
         order_id = save_order_to_db(request.items, request.total_price)
+        
+        # Print receipt to kitchen printer (non-blocking, don't fail if printer is offline)
+        try:
+            items_data = [item.model_dump() for item in request.items]
+            print_order_receipt(order_id, items_data, request.total_price)
+        except Exception as print_error:
+            print(f"[Printer] Warning: Could not print receipt: {print_error}")
+        
         return ConfirmOrderResponse(
             success=True,
             order_id=order_id,
