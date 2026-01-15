@@ -385,11 +385,21 @@ export default function VoiceOrderPage() {
       return;
     }
 
+    // Detect Android - Chrome Android doesn't support continuous mode properly
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    console.log("[Speech] Platform detected:", isAndroid ? "Android" : "Desktop/iOS");
+
     try {
       const recognition = new SpeechRecognitionAPI();
       recognition.lang = "th-TH";
-      recognition.continuous = true;
+      // Android: use single-shot mode with auto-restart (continuous doesn't work)
+      // Desktop/iOS Safari: use continuous mode
+      recognition.continuous = !isAndroid;
       recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+
+      // For Android: accumulate transcripts across restarts
+      let accumulatedTranscript = "";
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       recognition.onresult = (event: any) => {
@@ -404,16 +414,26 @@ export default function VoiceOrderPage() {
             interimTranscript += transcript;
           }
         }
-        const fullTranscript = finalTranscript + interimTranscript;
+
+        // For Android: accumulate final transcripts across restarts
+        if (isAndroid && finalTranscript) {
+          accumulatedTranscript += (accumulatedTranscript ? " " : "") + finalTranscript;
+        }
+
+        const fullTranscript = isAndroid
+          ? (accumulatedTranscript + (interimTranscript ? " " + interimTranscript : "")).trim()
+          : (finalTranscript + interimTranscript);
+
         setLiveTranscript(fullTranscript);
         transcriptRef.current = fullTranscript;
 
         // Auto-detect: if we have a final result with a menu item, stop and process
         // ONLY in Order Mode (in Note Mode, we rely on silence detection)
         // Use hasAutoStoppedRef to prevent multiple calls from rapid Speech API events
-        if (noteModeRef.current < 0 && finalTranscript && detectMenuItem(finalTranscript) && !hasAutoStoppedRef.current) {
+        const transcriptToCheck = isAndroid ? accumulatedTranscript : finalTranscript;
+        if (noteModeRef.current < 0 && transcriptToCheck && detectMenuItem(transcriptToCheck) && !hasAutoStoppedRef.current) {
           hasAutoStoppedRef.current = true; // Lock immediately to prevent double calls
-          console.log("Menu detected, auto-stopping:", finalTranscript);
+          console.log("Menu detected, auto-stopping:", transcriptToCheck);
           // Clear silence timer before stopping to prevent race condition
           if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
           stopRecording(); // Use the unified stop function
@@ -443,14 +463,34 @@ export default function VoiceOrderPage() {
         console.log("Speech recognition error:", event.error);
         if (event.error === "no-speech") {
           setLiveTranscript("(ไม่ได้ยินเสียง - กรุณาพูดใกล้ไมค์)");
+          // For Android: auto-restart on no-speech if still recording
+          if (isAndroid && appState === "recording" && !hasAutoStoppedRef.current) {
+            console.log("[Android] No speech detected, restarting...");
+            try {
+              recognition.start();
+            } catch (e) {
+              console.log("[Android] Could not restart after no-speech");
+            }
+          }
         } else if (event.error === "not-allowed" || event.error === "service-not-allowed") {
           setErrorMessage("⚠️ ไม่สามารถเข้าถึงไมโครโฟนได้ (Permission Denied)");
           setAppState("error");
+        } else if (event.error === "aborted") {
+          // Ignore aborted errors (happens when manually stopping)
+          console.log("[Speech] Recognition aborted");
         }
       };
 
       recognition.onend = () => {
-        // Optionally handle restart if we wanted continuous listening, but here we let it stop
+        // For Android: auto-restart if still in recording mode and not manually stopped
+        if (isAndroid && appState === "recording" && !hasAutoStoppedRef.current) {
+          console.log("[Android] Recognition ended, restarting...");
+          try {
+            recognition.start();
+          } catch (e) {
+            console.log("[Android] Could not restart recognition:", e);
+          }
+        }
       };
 
       recognition.start();
