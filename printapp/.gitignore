@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+
+.venv/
+venv/
+
+build/
+dist/
+
+*.app
+*.exe
+*.dmg
+*.pkg
+
+*.log
+.DS_Store

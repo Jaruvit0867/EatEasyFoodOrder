@@ -1,0 +1,3 @@
+([('EatEasyPrinter',
+   '/Users/nn0t/Documents/GitHub/printapp/dist/EatEasyPrinter',
+   'EXECUTABLE')],)
