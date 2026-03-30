@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -111,6 +111,8 @@ export default function VoiceOrderPage() {
   const [expandedIndex, setExpandedIndex] = useState<number>(-1);
   const [microphonePermission, setMicrophonePermission] = useState<MicrophonePermissionState>("checking");
   const [microphonePermissionError, setMicrophonePermissionError] = useState<string>("");
+  const [landscapeScale, setLandscapeScale] = useState(1);
+  const [compactLandscape, setCompactLandscape] = useState(false);
 
   // Manual Add State
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -194,6 +196,39 @@ export default function VoiceOrderPage() {
     if (!isAuthenticated) return;
     void syncMicrophonePermission();
   }, [isAuthenticated, syncMicrophonePermission]);
+
+  useEffect(() => {
+    const updateLayoutScale = () => {
+      if (typeof window === "undefined") return;
+
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const isLandscape = width > height;
+
+      if (!isLandscape) {
+        setLandscapeScale(1);
+        setCompactLandscape(false);
+        return;
+      }
+
+      const widthFit = width / 1220;
+      const heightFit = height / 720;
+      const nextScale = Math.max(0.64, Math.min(1, Math.min(widthFit, heightFit)));
+      const nextCompact = height < 560 || width < 960 || width / height > 1.7;
+
+      setLandscapeScale(Number(nextScale.toFixed(3)));
+      setCompactLandscape(nextCompact);
+    };
+
+    updateLayoutScale();
+    window.addEventListener("resize", updateLayoutScale);
+    window.addEventListener("orientationchange", updateLayoutScale);
+
+    return () => {
+      window.removeEventListener("resize", updateLayoutScale);
+      window.removeEventListener("orientationchange", updateLayoutScale);
+    };
+  }, []);
 
   const requestMicrophonePermission = useCallback(async () => {
     setMicrophonePermissionError("");
@@ -846,9 +881,16 @@ export default function VoiceOrderPage() {
     return null;
   }
 
+  const orderShellStyle = {
+    "--order-fit": landscapeScale,
+  } as CSSProperties;
+
   return (
     <>
-      <main className="order-shell page-frame min-h-screen px-4 py-5 sm:px-6 lg:px-8">
+      <main
+        className={`order-shell page-frame min-h-screen px-4 py-5 sm:px-6 lg:px-8 ${compactLandscape ? "order-shell-compact" : ""}`}
+        style={orderShellStyle}
+      >
         <div className="order-layout mx-auto grid max-w-[1700px] gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(380px,0.92fr)]">
           <section className="order-panel order-main-panel panel-surface flex min-h-[calc(100vh-2.5rem)] flex-col rounded-[2rem] p-5 sm:p-7 lg:p-8">
             <header className="order-header mb-5 flex items-start justify-between gap-4 border-b border-white/8 pb-5">
