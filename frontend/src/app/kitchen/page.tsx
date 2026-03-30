@@ -201,16 +201,10 @@ export default function KitchenPage() {
                         <div className="space-y-4">
                             <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-[var(--muted)]">
                                 <ChefHat className="h-4 w-4 text-[var(--accent)]" />
-                                ครัวออนไลน์ของร้าน
+                                Kitchen
                             </div>
                             <div>
-                                <p className="section-kicker mb-3">Kitchen Display</p>
-                                <h1 className="display-font text-3xl text-white sm:text-4xl">
-                                    หน้าครัวสำหรับคิวสดและการจัดการออเดอร์
-                                </h1>
-                                <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)] sm:text-base">
-                                    ระบบยังคงดึงข้อมูลจาก endpoint เดิมและอัปเดตทุก 5 วินาที แต่จัดวางใหม่ให้เห็นคิวอาหารและสถานะชัดขึ้นเวลาทำงานจริง
-                                </p>
+                                <h1 className="display-font text-3xl text-white sm:text-4xl">คิวครัว</h1>
                             </div>
                         </div>
 
@@ -259,9 +253,6 @@ export default function KitchenPage() {
                         <div className="flex flex-col items-center justify-center rounded-[1.75rem] border border-dashed border-white/10 px-6 py-20 text-center">
                             <ChefHat className="mb-5 h-16 w-16 text-[var(--muted)]" />
                             <h2 className="text-2xl font-bold text-white">ตอนนี้ยังไม่มีคิวในครัว</h2>
-                            <p className="mt-3 max-w-md text-sm leading-6 text-[var(--muted)]">
-                                เมื่อมีออเดอร์ใหม่เข้าระบบ รายการจะเด้งขึ้นที่หน้านี้ทันทีโดยไม่ต้องรีเฟรชเอง
-                            </p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">

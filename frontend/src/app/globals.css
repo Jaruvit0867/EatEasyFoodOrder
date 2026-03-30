@@ -233,6 +233,55 @@ canvas {
   background: linear-gradient(180deg, rgba(243, 162, 79, 0.52), rgba(239, 107, 74, 0.38));
 }
 
+@media (orientation: landscape) and (min-width: 768px) and (max-width: 1279px) {
+  .order-layout {
+    grid-template-columns: minmax(0, 1.06fr) minmax(320px, 0.94fr);
+    align-items: stretch;
+  }
+
+  .order-panel {
+    min-height: calc(100dvh - 2.5rem);
+  }
+
+  .order-main-panel {
+    padding: 1.25rem;
+  }
+
+  .order-cart-panel {
+    min-width: 0;
+  }
+
+  .order-mic-panel {
+    min-height: 0;
+    padding-block: 1.5rem;
+  }
+
+  .order-mic-button {
+    width: clamp(13rem, 30vw, 18rem);
+    height: clamp(13rem, 30vw, 18rem);
+  }
+
+  .order-transcript-panel {
+    padding: 1rem 1.25rem;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 540px) {
+  .order-main-panel,
+  .order-cart-panel {
+    min-height: calc(100dvh - 2rem);
+  }
+
+  .order-mic-panel {
+    padding-block: 1.25rem;
+  }
+
+  .order-mic-button {
+    width: clamp(11.5rem, 28vw, 15rem);
+    height: clamp(11.5rem, 28vw, 15rem);
+  }
+}
+
 /* ========== GLASSMORPHISM & PREMIUM EFFECTS ========== */
 
 /* Glassmorphism Card */

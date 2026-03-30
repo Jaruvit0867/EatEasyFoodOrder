@@ -67,6 +67,7 @@ interface OrderResponse {
 }
 
 type AppState = "idle" | "recording" | "processing" | "review" | "confirmed" | "error";
+type MicrophonePermissionState = "checking" | "prompt" | "granted" | "denied" | "unsupported";
 
 const ADDON_ICON_MAP: Record<string, LucideIcon> = {
   ไข่ดาว: Egg,
@@ -106,9 +107,10 @@ export default function VoiceOrderPage() {
   const [recordingTime, setRecordingTime] = useState<number>(0);
   const [noteMode, setNoteMode] = useState<number>(-1);
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [showValidationModal, setShowValidationModal] = useState<boolean>(false);
   const [showOrderTypeModal, setShowOrderTypeModal] = useState<boolean>(false);
   const [expandedIndex, setExpandedIndex] = useState<number>(-1);
+  const [microphonePermission, setMicrophonePermission] = useState<MicrophonePermissionState>("checking");
+  const [microphonePermissionError, setMicrophonePermissionError] = useState<string>("");
 
   // Manual Add State
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -156,6 +158,76 @@ export default function VoiceOrderPage() {
     };
     fetchData();
   }, [isAuthenticated]);
+
+  const syncMicrophonePermission = useCallback(async () => {
+    if (typeof window === "undefined") return;
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setMicrophonePermission("unsupported");
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const permissionsApi = (navigator as any).permissions;
+    if (!permissionsApi?.query) {
+      setMicrophonePermission("prompt");
+      return;
+    }
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const status = await permissionsApi.query({ name: "microphone" as any });
+
+      if (status.state === "granted") {
+        setMicrophonePermission("granted");
+      } else if (status.state === "denied") {
+        setMicrophonePermission("denied");
+      } else {
+        setMicrophonePermission("prompt");
+      }
+    } catch {
+      setMicrophonePermission("prompt");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void syncMicrophonePermission();
+  }, [isAuthenticated, syncMicrophonePermission]);
+
+  const requestMicrophonePermission = useCallback(async () => {
+    setMicrophonePermissionError("");
+
+    if (typeof window === "undefined") return false;
+
+    if (window.location.hostname !== "localhost" && window.location.protocol !== "https:") {
+      setMicrophonePermission("denied");
+      setMicrophonePermissionError("ไมค์ใช้งานได้ผ่าน HTTPS หรือ localhost เท่านั้น");
+      return false;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setMicrophonePermission("unsupported");
+      setMicrophonePermissionError("เบราว์เซอร์นี้ไม่รองรับการใช้งานไมโครโฟน");
+      return false;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      setMicrophonePermission("granted");
+      return true;
+    } catch (error) {
+      const errorName = error instanceof DOMException ? error.name : "";
+      setMicrophonePermission(errorName === "NotAllowedError" ? "denied" : "prompt");
+      setMicrophonePermissionError(
+        errorName === "NotAllowedError"
+          ? "กรุณาอนุญาตไมโครโฟนในเบราว์เซอร์ก่อนใช้งาน"
+          : "ไม่สามารถเข้าถึงไมโครโฟนได้"
+      );
+      return false;
+    }
+  }, []);
 
 
   const openManualModal = () => {
@@ -520,7 +592,9 @@ export default function VoiceOrderPage() {
             }
           }
         } else if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-          setErrorMessage("⚠️ ไม่สามารถเข้าถึงไมโครโฟนได้ (Permission Denied)");
+          setMicrophonePermission("denied");
+          setMicrophonePermissionError("กรุณาอนุญาตไมโครโฟนในเบราว์เซอร์ก่อนใช้งาน");
+          setErrorMessage("ไม่สามารถเข้าถึงไมโครโฟนได้");
           setAppState("error");
         } else if (event.error === "aborted") {
           // Ignore aborted errors (happens when manually stopping)
@@ -558,7 +632,17 @@ export default function VoiceOrderPage() {
 
       // Security check for Microphone on non-localhost/non-https
       if (window.location.hostname !== "localhost" && window.location.protocol !== "https:") {
-        setErrorMessage("⚠️ ไมค์ใช้ไม่ได้บน HTTP (ต้องใช้ HTTPS หรือ localhost)");
+        setMicrophonePermission("denied");
+        setMicrophonePermissionError("ไมค์ใช้งานได้ผ่าน HTTPS หรือ localhost เท่านั้น");
+        setErrorMessage("ไมค์ใช้งานไม่ได้บน HTTP");
+        setAppState("error");
+        return;
+      }
+
+      const hasMicrophoneAccess =
+        microphonePermission === "granted" || (await requestMicrophonePermission());
+
+      if (!hasMicrophoneAccess) {
         setAppState("error");
         return;
       }
@@ -581,7 +665,7 @@ export default function VoiceOrderPage() {
       setErrorMessage("เกิดข้อผิดพลาดในการเริ่มอัดเสียง");
       setAppState("error");
     }
-  }, [appState, startLiveTranscript]);
+  }, [appState, microphonePermission, requestMicrophonePermission, startLiveTranscript]);
 
   // Toggle recording (click to start/stop)
   const toggleRecording = useCallback(async () => {
@@ -765,8 +849,8 @@ export default function VoiceOrderPage() {
   return (
     <>
       <main className="page-frame min-h-screen px-4 py-5 sm:px-6 lg:px-8">
-        <div className="mx-auto grid max-w-[1700px] gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(380px,0.92fr)]">
-          <section className="panel-surface flex min-h-[calc(100vh-2.5rem)] flex-col rounded-[2rem] p-5 sm:p-7 lg:p-8">
+        <div className="order-layout mx-auto grid max-w-[1700px] gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(380px,0.92fr)]">
+          <section className="order-panel order-main-panel panel-surface flex min-h-[calc(100vh-2.5rem)] flex-col rounded-[2rem] p-5 sm:p-7 lg:p-8">
             <header className="mb-5 flex items-start justify-between gap-4 border-b border-white/8 pb-5">
               <div className="space-y-3">
                 <h1 className="display-font text-3xl text-white sm:text-4xl">EatEasy Order</h1>
@@ -821,6 +905,34 @@ export default function VoiceOrderPage() {
             </header>
 
             <div className="flex flex-1 flex-col gap-4">
+              {microphonePermission !== "granted" && microphonePermission !== "checking" && (
+                <div className="panel-surface-soft rounded-[1.5rem] px-4 py-4 sm:px-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-white">อนุญาตไมโครโฟนก่อนเริ่มสั่งอาหาร</p>
+                      <p className="mt-1 text-sm text-[var(--muted)]">
+                        {microphonePermission === "unsupported"
+                          ? "เบราว์เซอร์นี้ไม่รองรับการใช้งานไมโครโฟน"
+                          : "กดปุ่มด้านขวาเพื่อให้เบราว์เซอร์ขอสิทธิ์ใช้งานไมโครโฟน"}
+                      </p>
+                    </div>
+                    {microphonePermission !== "unsupported" && (
+                      <button
+                        onClick={() => void requestMicrophonePermission()}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                      >
+                        <Mic className="h-4 w-4 text-[var(--accent)]" />
+                        อนุญาตไมโครโฟน
+                      </button>
+                    )}
+                  </div>
+
+                  {microphonePermissionError && (
+                    <p className="mt-3 text-sm text-rose-100">{microphonePermissionError}</p>
+                  )}
+                </div>
+              )}
+
               {(appState === "error" && errorMessage) || (appState === "confirmed" && confirmationMessage) || pendingNoteItem ? (
                 <div className="panel-surface-soft rounded-[1.5rem] px-4 py-3 sm:px-5">
                   {pendingNoteItem && appState !== "error" && appState !== "confirmed" && (
@@ -839,14 +951,14 @@ export default function VoiceOrderPage() {
                 </div>
               ) : null}
 
-              <div className="panel-surface-soft flex flex-1 flex-col items-center justify-center rounded-[2rem] px-6 py-8 text-center">
+              <div className="order-mic-panel panel-surface-soft flex flex-1 flex-col items-center justify-center rounded-[2rem] px-6 py-8 text-center">
                   <button
                     onClick={() => {
                       if (appState === "idle" || appState === "error") toggleRecording();
                       else if (appState === "recording") toggleRecording();
                     }}
                     disabled={appState === "processing" || appState === "confirmed"}
-                    className={`
+                    className={`order-mic-button
                       group relative flex h-56 w-56 items-center justify-center rounded-full transition-all duration-500 sm:h-72 sm:w-72
                       ${appState === "idle" || appState === "review" || appState === "error"
                         ? "border border-[rgba(243,162,79,0.22)] bg-gradient-to-br from-amber-200/10 via-orange-400/8 to-rose-500/10 hover:-translate-y-1 ring-accent"
@@ -913,7 +1025,7 @@ export default function VoiceOrderPage() {
                   )}
                 </div>
 
-                <div className="panel-surface-soft rounded-[1.75rem] p-5">
+                <div className="order-transcript-panel panel-surface-soft rounded-[1.75rem] p-5">
                   <p className="mb-3 text-sm font-semibold text-white">ข้อความล่าสุด</p>
                   {liveTranscript ? (
                     <div className="custom-scrollbar max-h-36 overflow-y-auto rounded-[1.25rem] border border-white/8 bg-black/10 px-4 py-3">
@@ -958,7 +1070,7 @@ export default function VoiceOrderPage() {
             </div>
           </section>
 
-          <section className="panel-surface flex min-h-[calc(100vh-2.5rem)] flex-col rounded-[2rem]">
+          <section className="order-panel order-cart-panel panel-surface flex min-h-[calc(100vh-2.5rem)] flex-col rounded-[2rem]">
             <div className="border-b border-white/8 px-5 py-5 sm:px-6">
               <div className="flex items-start justify-between gap-4">
                 <div>

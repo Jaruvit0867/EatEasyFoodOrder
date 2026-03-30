@@ -335,16 +335,10 @@ export default function DashboardPage() {
                         <div className="space-y-4">
                             <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-[var(--muted)]">
                                 <BarChart3 className="h-4 w-4 text-[var(--accent)]" />
-                                ศูนย์ควบคุมร้านอาหาร
+                                Dashboard
                             </div>
                             <div>
-                                <p className="section-kicker mb-3">Dashboard</p>
-                                <h1 className="display-font text-3xl text-white sm:text-4xl">
-                                    ภาพรวมร้าน เมนู และประวัติการขาย
-                                </h1>
-                                <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)] sm:text-base">
-                                    ใช้ดูสถิติออเดอร์ ปรับเมนู และเช็กความเคลื่อนไหวของร้านจากจุดเดียว โดยคง endpoint และ flow เดิมทั้งหมด
-                                </p>
+                                <h1 className="display-font text-3xl text-white sm:text-4xl">จัดการร้านอาหาร</h1>
                             </div>
                         </div>
 
@@ -479,7 +473,6 @@ export default function DashboardPage() {
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-bold text-white">ยอดขายรายวัน</h3>
-                                        <p className="text-sm text-[var(--muted)]">เปรียบเทียบรายได้ตามช่วงเวลาที่เลือก</p>
                                     </div>
                                 </div>
                                 <div className="h-48 flex items-end gap-1">
@@ -505,7 +498,6 @@ export default function DashboardPage() {
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-bold text-white">เมนูยอดนิยม</h3>
-                                        <p className="text-sm text-[var(--muted)]">รายการที่ถูกสั่งบ่อยที่สุดในช่วงที่เลือก</p>
                                     </div>
                                 </div>
                                 {topItems.length === 0 ? (
@@ -539,7 +531,6 @@ export default function DashboardPage() {
                         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <h2 className="text-xl font-bold text-white">จัดการเมนูอาหาร</h2>
-                                <p className="mt-1 text-sm text-[var(--muted)]">แก้ข้อมูลราคา คีย์เวิร์ด และสถานะการขายโดยไม่แตะ logic backend</p>
                             </div>
                             <button
                                 onClick={openAddModal}
@@ -734,7 +725,6 @@ export default function DashboardPage() {
                     <div className="panel-surface w-full max-w-md rounded-[2rem] p-6">
                         <div className="mb-6 flex items-start justify-between gap-4">
                             <div>
-                                <p className="section-kicker mb-3">Menu Editor</p>
                                 <h2 className="text-xl font-bold text-white">
                                     {editingItem ? "แก้ไขเมนู" : "เพิ่มเมนูใหม่"}
                                 </h2>
