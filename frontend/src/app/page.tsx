@@ -4,7 +4,6 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
-  ChefHat,
   ChevronDown,
   CircleAlert,
   CircleCheckBig,
@@ -23,7 +22,6 @@ import {
   Sparkles,
   Trash2,
   UtensilsCrossed,
-  WandSparkles,
   X,
 } from "lucide-react";
 import { API_URL } from "../config";
@@ -769,134 +767,79 @@ export default function VoiceOrderPage() {
       <main className="page-frame min-h-screen px-4 py-5 sm:px-6 lg:px-8">
         <div className="mx-auto grid max-w-[1700px] gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(380px,0.92fr)]">
           <section className="panel-surface flex min-h-[calc(100vh-2.5rem)] flex-col rounded-[2rem] p-5 sm:p-7 lg:p-8">
-            <header className="mb-6 flex flex-col gap-5 border-b border-white/8 pb-6 lg:flex-row lg:items-start lg:justify-between">
-              <div className="space-y-4">
-                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-[var(--muted)]">
-                  <ChefHat className="h-4 w-4 text-[var(--accent)]" />
-                  ระบบสั่งอาหารด้วยเสียง
-                </div>
-                <div>
-                  <p className="section-kicker mb-3">Voice Ordering</p>
-                  <h1 className="display-font text-3xl text-white sm:text-4xl lg:text-5xl">
-                    รับออเดอร์แบบเร็วขึ้น แต่ภาพลักษณ์ยังต้องดูเป็นร้านจริง
-                  </h1>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)] sm:text-base">
-                    ใช้เสียงเพื่อเพิ่มเมนูเข้าตะกร้า แล้วตรวจรายการ แก้ add-on และยืนยันออเดอร์ได้จากหน้าจอเดียว
-                  </p>
+            <header className="mb-5 flex items-start justify-between gap-4 border-b border-white/8 pb-5">
+              <div className="space-y-3">
+                <h1 className="display-font text-3xl text-white sm:text-4xl">EatEasy Order</h1>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium ${appState === "error"
+                      ? "bg-rose-400/12 text-rose-100"
+                      : appState === "confirmed"
+                        ? "bg-emerald-400/12 text-emerald-100"
+                        : appState === "processing"
+                          ? "bg-sky-400/12 text-sky-100"
+                          : appState === "recording"
+                            ? "bg-orange-400/16 text-[var(--accent)]"
+                            : "bg-white/6 text-white"
+                      }`}
+                  >
+                    {appState === "error" ? <CircleAlert className="h-4 w-4" /> :
+                      appState === "confirmed" ? <CircleCheckBig className="h-4 w-4" /> :
+                        appState === "processing" ? <LoaderCircle className="h-4 w-4 animate-spin" /> :
+                          <Mic className="h-4 w-4" />}
+                    {appState === "idle" && noteMode < 0 && "พร้อมรับออเดอร์"}
+                    {appState === "idle" && noteMode >= 0 && "เพิ่มรายละเอียด"}
+                    {appState === "recording" && "กำลังฟัง"}
+                    {appState === "processing" && "กำลังประมวลผล"}
+                    {appState === "error" && "ลองใหม่"}
+                    {appState === "confirmed" && "บันทึกแล้ว"}
+                  </span>
+
+                  {appState === "recording" && (
+                    <span className="inline-flex items-center gap-2 rounded-full bg-white/6 px-3 py-1.5 text-sm text-white">
+                      <Clock3 className="h-4 w-4" />
+                      {formatTime(recordingTime)}
+                    </span>
+                  )}
+
+                  {pendingNoteItem && (
+                    <span className="inline-flex items-center gap-2 rounded-full bg-white/6 px-3 py-1.5 text-sm text-white">
+                      <FilePenLine className="h-4 w-4 text-[var(--accent)]" />
+                      {pendingNoteItem.menu_name}
+                    </span>
+                  )}
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:w-[22rem]">
-                <div className="panel-surface-soft rounded-[1.5rem] p-4">
-                  <p className="mb-2 text-sm text-[var(--muted)]">สถานะระบบ</p>
-                  <div className="flex items-center gap-3">
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${appState === "error" ? "bg-rose-400/14 text-rose-200" :
-                      appState === "confirmed" ? "bg-emerald-400/14 text-emerald-100" :
-                        appState === "processing" ? "bg-sky-400/14 text-sky-100" :
-                          appState === "recording" ? "bg-orange-400/16 text-[var(--accent)]" :
-                            "bg-white/6 text-white"
-                      }`}>
-                      {appState === "error" ? (
-                        <CircleAlert className="h-5 w-5" />
-                      ) : appState === "confirmed" ? (
-                        <CircleCheckBig className="h-5 w-5" />
-                      ) : appState === "processing" ? (
-                        <LoaderCircle className="h-5 w-5 animate-spin" />
-                      ) : (
-                        <Mic className="h-5 w-5" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-white">
-                        {appState === "idle" && noteMode < 0 && "พร้อมรับออเดอร์"}
-                        {appState === "idle" && noteMode >= 0 && "โหมดเพิ่มรายละเอียด"}
-                        {appState === "recording" && (noteMode >= 0 ? "กำลังบันทึกรายละเอียด" : "กำลังฟังคำสั่ง")}
-                        {appState === "processing" && "กำลังประมวลผล"}
-                        {appState === "error" && "มีข้อผิดพลาด"}
-                        {appState === "confirmed" && "บันทึกสำเร็จ"}
-                      </p>
-                      <p className="text-xs text-[var(--muted)]">
-                        {appState === "recording" ? formatTime(recordingTime) : `${cart.length} รายการในตะกร้า`}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={openManualModal}
-                  className="panel-surface-soft flex rounded-[1.5rem] p-4 text-left transition-transform hover:-translate-y-0.5"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/6 text-[var(--accent)]">
-                      <WandSparkles className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-white">เพิ่มรายการเอง</p>
-                      <p className="text-xs text-[var(--muted)]">ค้นหาเมนูแล้วปรับ add-on แบบ manual</p>
-                    </div>
-                  </div>
-                </button>
-              </div>
+              <button
+                onClick={openManualModal}
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+              >
+                <Plus className="h-4 w-4 text-[var(--accent)]" />
+                เพิ่มรายการเอง
+              </button>
             </header>
 
-            <div className="grid flex-1 gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-              <div className="flex flex-col gap-4">
-                <div className="panel-surface-soft rounded-[1.75rem] p-5 sm:p-6">
-                  <p className="section-kicker mb-3">Now Listening</p>
-                  {appState === "idle" && noteMode < 0 && (
-                    <>
-                      <h2 className="text-2xl font-semibold text-white sm:text-3xl">แตะปุ่มกลางแล้วเริ่มพูดรายการอาหาร</h2>
-                      <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                        ตัวอย่างเช่น “ข้าวกะเพราหมูไข่ดาว” หรือ “ข้าวผัดกุ้งพิเศษ”
-                      </p>
-                    </>
+            <div className="flex flex-1 flex-col gap-4">
+              {(appState === "error" && errorMessage) || (appState === "confirmed" && confirmationMessage) || pendingNoteItem ? (
+                <div className="panel-surface-soft rounded-[1.5rem] px-4 py-3 sm:px-5">
+                  {pendingNoteItem && appState !== "error" && appState !== "confirmed" && (
+                    <p className="text-sm text-white">
+                      กำลังเพิ่มรายละเอียดให้ <span className="font-semibold text-[var(--accent)]">{pendingNoteItem.menu_name}</span>
+                    </p>
                   )}
-                  {appState === "idle" && noteMode >= 0 && (
-                    <>
-                      <h2 className="text-2xl font-semibold text-white sm:text-3xl">เพิ่มรายละเอียดให้ {pendingNoteItem?.menu_name}</h2>
-                      <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                        พูดข้อความกำกับอาหารได้เลย เช่น ไม่เผ็ด ใส่กล่อง หรือเลือกเส้น
-                      </p>
-                    </>
+
+                  {appState === "error" && errorMessage && (
+                    <p className="text-sm text-rose-100">{errorMessage}</p>
                   )}
-                  {appState === "recording" && (
-                    <>
-                      <h2 className="text-2xl font-semibold text-white sm:text-3xl">
-                        {noteMode >= 0 ? "กำลังฟังรายละเอียดเพิ่มเติม" : "กำลังฟังคำสั่งอาหาร"}
-                      </h2>
-                      <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-rose-400/12 px-3 py-1 text-sm text-rose-100">
-                        <Clock3 className="h-4 w-4" />
-                        {formatTime(recordingTime)}
-                      </div>
-                    </>
-                  )}
-                  {appState === "processing" && (
-                    <>
-                      <h2 className="text-2xl font-semibold text-white sm:text-3xl">กำลังประมวลผลคำสั่ง</h2>
-                      <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                        ระบบกำลังเทียบ transcript กับเมนูและตัวเลือกเพิ่มเติม
-                      </p>
-                    </>
-                  )}
-                  {appState === "error" && (
-                    <>
-                      <h2 className="text-2xl font-semibold text-white sm:text-3xl">ระบบยังไม่เข้าใจคำสั่งนี้</h2>
-                      <p className="mt-2 rounded-2xl border border-rose-400/16 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
-                        {errorMessage}
-                      </p>
-                    </>
-                  )}
-                  {appState === "confirmed" && (
-                    <>
-                      <h2 className="text-2xl font-semibold text-white sm:text-3xl">บันทึกออเดอร์สำเร็จ</h2>
-                      <p className="mt-2 text-sm leading-6 text-emerald-100">
-                        {confirmationMessage}
-                      </p>
-                    </>
+
+                  {appState === "confirmed" && confirmationMessage && (
+                    <p className="text-sm text-emerald-100">{confirmationMessage}</p>
                   )}
                 </div>
+              ) : null}
 
-                <div className="panel-surface-soft flex flex-1 flex-col items-center justify-center rounded-[2rem] px-6 py-8 text-center">
+              <div className="panel-surface-soft flex flex-1 flex-col items-center justify-center rounded-[2rem] px-6 py-8 text-center">
                   <button
                     onClick={() => {
                       if (appState === "idle" || appState === "error") toggleRecording();
@@ -924,14 +867,9 @@ export default function VoiceOrderPage() {
                       {(appState === "idle" || appState === "review" || appState === "error") && (
                         <>
                           <Mic className={`h-16 w-16 sm:h-24 sm:w-24 ${noteMode >= 0 ? "text-[var(--accent)]" : "text-white"}`} />
-                          <div>
-                            <p className="text-2xl font-semibold text-white sm:text-3xl">
-                              {noteMode >= 0 ? "พูดรายละเอียด" : cart.length > 0 ? "สั่งเพิ่ม" : "เริ่มสั่ง"}
-                            </p>
-                            <p className="mt-1 text-sm text-[var(--muted)]">
-                              แตะอีกครั้งเพื่อหยุดฟัง
-                            </p>
-                          </div>
+                          <p className="text-2xl font-semibold text-white sm:text-3xl">
+                            {noteMode >= 0 ? "บันทึกรายละเอียด" : cart.length > 0 ? "เพิ่มรายการ" : "เริ่มสั่งอาหาร"}
+                          </p>
                         </>
                       )}
                       {appState === "recording" && (
@@ -941,6 +879,7 @@ export default function VoiceOrderPage() {
                             <Clock3 className="h-4 w-4" />
                             {formatTime(recordingTime)}
                           </div>
+                          <p className="text-sm text-white/75">แตะอีกครั้งเพื่อหยุด</p>
                         </>
                       )}
                       {appState === "processing" && (
@@ -973,32 +912,22 @@ export default function VoiceOrderPage() {
                     </div>
                   )}
                 </div>
-              </div>
 
-              <div className="flex flex-col gap-4">
                 <div className="panel-surface-soft rounded-[1.75rem] p-5">
-                  <div className="mb-3 flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/6 text-[var(--accent)]">
-                      <Mic className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-white">Transcript สด</p>
-                      <p className="text-xs text-[var(--muted)]">ข้อความที่ระบบได้ยินจากรอบล่าสุด</p>
-                    </div>
-                  </div>
+                  <p className="mb-3 text-sm font-semibold text-white">ข้อความล่าสุด</p>
                   {liveTranscript ? (
                     <div className="custom-scrollbar max-h-36 overflow-y-auto rounded-[1.25rem] border border-white/8 bg-black/10 px-4 py-3">
-                      <p className="text-base leading-7 text-white sm:text-lg">"{liveTranscript}"</p>
+                      <p className="text-base leading-7 text-white sm:text-lg">{liveTranscript}</p>
                     </div>
                   ) : (
                     <div className="rounded-[1.25rem] border border-dashed border-white/8 px-4 py-6 text-sm text-[var(--muted)]">
-                      เมื่อเริ่มพูด ระบบจะแสดง transcript ในพื้นที่นี้ทันที
+                      ยังไม่มีข้อความ
                     </div>
                   )}
 
                   {appState === "error" && suggestions.length > 0 && (
                     <div className="mt-4">
-                      <p className="mb-2 text-sm text-[var(--muted)]">ลองเลือกตัวเลือกที่ใกล้เคียง</p>
+                      <p className="mb-2 text-sm text-[var(--muted)]">คำที่ใกล้เคียง</p>
                       <div className="flex flex-wrap gap-2">
                         {suggestions.map((suggestion, index) => (
                           <button
@@ -1026,19 +955,6 @@ export default function VoiceOrderPage() {
                     </button>
                   )}
                 </div>
-
-                {pendingNoteItem && (
-                  <div className="panel-surface-soft rounded-[1.75rem] p-5">
-                    <div className="mb-2 flex items-center gap-3">
-                      <FilePenLine className="h-5 w-5 text-[var(--accent)]" />
-                      <p className="font-semibold text-white">กำลังเพิ่มรายละเอียด</p>
-                    </div>
-                    <p className="text-sm leading-6 text-[var(--muted)]">
-                      รายการที่เลือก: <span className="font-semibold text-white">{pendingNoteItem.menu_name}</span>
-                    </p>
-                  </div>
-                )}
-              </div>
             </div>
           </section>
 
@@ -1051,11 +967,9 @@ export default function VoiceOrderPage() {
                       <ClipboardList className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="section-kicker mb-1">Order Board</p>
                       <h2 className="text-2xl font-bold text-white">รายการอาหาร</h2>
                     </div>
                   </div>
-                  <p className="text-sm text-[var(--muted)]">ปรับจำนวน เพิ่ม add-on และใส่รายละเอียดก่อนยืนยัน</p>
                 </div>
 
                 <div className="rounded-full border border-[rgba(243,162,79,0.22)] bg-[rgba(243,162,79,0.08)] px-4 py-2 text-sm font-semibold text-[var(--accent)]">
@@ -1069,9 +983,6 @@ export default function VoiceOrderPage() {
                 <div className="flex h-full flex-col items-center justify-center rounded-[1.8rem] border border-dashed border-white/10 px-6 py-16 text-center">
                   <ClipboardList className="mb-5 h-16 w-16 text-[var(--muted)]" />
                   <h3 className="text-2xl font-bold text-white">ยังไม่มีรายการในตะกร้า</h3>
-                  <p className="mt-3 max-w-sm text-sm leading-6 text-[var(--muted)]">
-                    เริ่มจากกดปุ่มไมโครโฟนเพื่อสั่งอาหาร หรือเพิ่มรายการเองแบบ manual
-                  </p>
                   <button
                     onClick={openManualModal}
                     className="mt-6 inline-flex items-center gap-2 rounded-2xl border border-white/8 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
@@ -1201,10 +1112,7 @@ export default function VoiceOrderPage() {
                                   className="flex w-full items-center justify-center gap-3 rounded-[1.3rem] border border-dashed border-white/10 bg-white/4 px-4 py-4 text-left text-sm text-[var(--muted)] transition-colors hover:bg-white/8 hover:text-white sm:text-base"
                                 >
                                   <Mic className="h-5 w-5 text-[var(--accent)]" />
-                                  <span>
-                                    <span className="font-semibold text-white">เพิ่มรายละเอียด</span>
-                                    <span className="ml-2 text-[var(--muted)]">เช่น ไม่เผ็ด ใส่กล่อง หรือเลือกเส้น</span>
-                                  </span>
+                                  <span className="font-semibold text-white">เพิ่มรายละเอียด</span>
                                 </button>
                               )}
                             </div>
@@ -1228,12 +1136,8 @@ export default function VoiceOrderPage() {
             {cart.length > 0 && (
               <div className="glass glow-border-top border-t border-white/8 px-5 py-5 sm:px-6">
                 <div className="mb-5 flex items-end justify-between">
-                  <div>
-                    <p className="section-kicker mb-2">Order Summary</p>
-                    <p className="text-sm text-[var(--muted)]">ตรวจรายการก่อนส่งเข้าครัว</p>
-                  </div>
+                  <p className="text-sm text-[var(--muted)]">ยอดรวม</p>
                   <div className="text-right">
-                    <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted)]">รวมทั้งหมด</p>
                     <p className="gradient-text-orange text-4xl font-bold">{getCartTotal()}</p>
                   </div>
                 </div>
@@ -1273,7 +1177,6 @@ export default function VoiceOrderPage() {
           <div className="panel-surface flex h-[84vh] w-full max-w-3xl animate-scale-in flex-col overflow-hidden rounded-[2rem]">
             <div className="flex items-start justify-between gap-4 border-b border-white/8 px-6 py-5">
               <div>
-                <p className="section-kicker mb-3">Manual Add</p>
                 <h3 className="text-2xl font-bold text-white">
                   {selectedManualItem ? "ปรับแต่งรายการอาหาร" : "เลือกเมนูอาหาร"}
                 </h3>
@@ -1333,7 +1236,6 @@ export default function VoiceOrderPage() {
                 <div className="space-y-8">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <p className="section-kicker mb-3">Selected Menu</p>
                       <h2 className="text-3xl font-bold text-white">{selectedManualItem.name}</h2>
                     </div>
                     <div className="rounded-[1.4rem] border border-[rgba(243,162,79,0.22)] bg-[rgba(243,162,79,0.08)] px-5 py-4 text-right">
@@ -1419,20 +1321,15 @@ export default function VoiceOrderPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
           <div className="panel-surface w-full max-w-xl animate-scale-in rounded-[2rem] p-6 sm:p-8">
             <div className="text-center">
-              <p className="section-kicker mb-3">Serving Type</p>
               <h3 className="display-font text-3xl text-white sm:text-4xl">เลือกรูปแบบการรับอาหาร</h3>
-              <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--muted)]">
-                ค่านี้จะถูกแนบไปกับทุกรายการในออเดอร์เพื่อให้ครัวและบิลแสดงผลเหมือนเดิม
-              </p>
 
-              <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 <button
                   onClick={() => submitOrder("dine-in")}
                   className="group rounded-[1.75rem] border border-sky-300/20 bg-sky-300/8 px-5 py-8 text-left transition-transform hover:-translate-y-1"
                 >
                   <UtensilsCrossed className="h-8 w-8 text-sky-200 transition-transform group-hover:scale-110" />
                   <p className="mt-6 text-2xl font-bold text-white">ทานที่ร้าน</p>
-                  <p className="mt-2 text-sm leading-6 text-sky-50/70">ส่งเข้าครัวแบบเสิร์ฟที่โต๊ะหรือรับจากหน้าร้าน</p>
                 </button>
 
                 <button
@@ -1441,7 +1338,6 @@ export default function VoiceOrderPage() {
                 >
                   <Package className="h-8 w-8 text-[var(--accent)] transition-transform group-hover:scale-110" />
                   <p className="mt-6 text-2xl font-bold text-white">กลับบ้าน</p>
-                  <p className="mt-2 text-sm leading-6 text-[var(--muted)]">ระบบจะผูก note สำหรับแพ็กใส่กล่องเหมือน flow เดิม</p>
                 </button>
               </div>
 
