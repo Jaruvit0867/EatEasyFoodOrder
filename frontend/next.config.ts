@@ -1,17 +1,21 @@
 import type { NextConfig } from "next";
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
-const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const devBackendUrl = "http://127.0.0.1:8000";
 
-const nextConfig: NextConfig = {
-  output: "standalone", // Required for Azure Static Web Apps
-  async rewrites() {
-    return [
+export default function createNextConfig(phase: string): NextConfig {
+  const config: NextConfig = {
+    output: "export",
+  };
+
+  if (phase === PHASE_DEVELOPMENT_SERVER) {
+    config.rewrites = async () => [
       {
         source: "/api/:path*",
-        destination: `${backendUrl}/:path*`, // Proxy to Backend
+        destination: `${devBackendUrl}/:path*`,
       },
     ];
-  },
-};
+  }
 
-export default nextConfig;
+  return config;
+}

@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { API_URL } from "../config";
-import { checkAuth } from "../auth";
+import { checkAuth, getAuthHeaders } from "../auth";
 
 // Types
 interface MenuItem {
@@ -96,11 +96,15 @@ export default function VoiceOrderPage() {
 
     const fetchData = async () => {
       try {
-        const menuRes = await fetch(`${BACKEND_URL}/menu-items`, { credentials: "include" });
+        const menuRes = await fetch(`${BACKEND_URL}/menu-items`, {
+          headers: getAuthHeaders(),
+        });
         const menuData = await menuRes.json();
         if (menuData.success) setMenuItems(menuData.items);
 
-        const addonRes = await fetch(`${BACKEND_URL}/addons`, { credentials: "include" });
+        const addonRes = await fetch(`${BACKEND_URL}/addons`, {
+          headers: getAuthHeaders(),
+        });
         const addonData = await addonRes.json();
         if (addonData.addons) setAddonOptions(addonData.addons);
       } catch (e) {
@@ -250,9 +254,9 @@ export default function VoiceOrderPage() {
 
       const response = await fetch(`${BACKEND_URL}/process-text-order`, {
         method: "POST",
-        headers: {
+        headers: getAuthHeaders({
           "Content-Type": "application/json",
-        },
+        }),
         body: JSON.stringify({ transcript }),
       });
 
@@ -599,9 +603,9 @@ export default function VoiceOrderPage() {
 
       const response = await fetch(`${BACKEND_URL}/confirm-order`, {
         method: "POST",
-        headers: {
+        headers: getAuthHeaders({
           "Content-Type": "application/json",
-        },
+        }),
         body: JSON.stringify({
           items: itemsToSend,
           total_price: getCartTotal(),
@@ -653,7 +657,7 @@ export default function VoiceOrderPage() {
     try {
       const response = await fetch(`${BACKEND_URL}/process-text-order`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ transcript: text }),
       });
       const data = await response.json();

@@ -1,9 +1,9 @@
-// Runtime configuration for API URL
-// This file is used to configure the backend URL at build time
-// When deploying to Azure, change this URL to your App Service URL
+const publicApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
 
-export const API_URL = typeof window !== 'undefined'
-    ? (window.location.hostname === 'localhost'
-        ? '/api' // Local development uses Next.js rewrite
-        : 'https://eateasy-backend.azurewebsites.net') // Production Azure backend
-    : '/api'; // Server-side fallback
+const isLocalDevHost = typeof window !== "undefined" &&
+  ["localhost", "127.0.0.1"].includes(window.location.hostname);
+
+// Local development uses the Next.js rewrite. Static deployments call the backend directly.
+export const API_URL = isLocalDevHost
+  ? "/api"
+  : publicApiUrl || "https://eateasy-backend.azurewebsites.net";

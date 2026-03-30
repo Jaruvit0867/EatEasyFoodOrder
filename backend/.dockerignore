@@ -1,0 +1,10 @@
+venv
+antenv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+orders.sqlite
+.env
+.pytest_cache
+*.log

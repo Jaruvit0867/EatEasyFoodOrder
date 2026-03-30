@@ -1,8 +1,16 @@
+import os
 import requests
-import json
 import time
+from dotenv import load_dotenv
 
-BASE_URL = "http://localhost:8000/process-text-order"
+load_dotenv()
+
+API_BASE = "http://localhost:8000"
+PROCESS_URL = f"{API_BASE}/process-text-order"
+LOGIN_URL = f"{API_BASE}/auth/login"
+AUTH_HEADERS = {}
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
 # Extracted from backend/main.py
 MENU_ITEMS = [
@@ -36,7 +44,7 @@ SPECIAL_CASES = [
     "หมูกรอบ", # Ambiguous
 ]
 
-print(f"🚀 Starting Comprehensive Stress Test against {BASE_URL}")
+print(f"🚀 Starting Comprehensive Stress Test against {PROCESS_URL}")
 print(f"📦 Total Menu Items: {len(MENU_ITEMS)}")
 print(f"🔄 Variations per Item: {len(VARIATIONS)}")
 print("-" * 50)
@@ -45,6 +53,17 @@ passed = 0
 failed = 0
 total_tests = 0
 
+def login():
+    global AUTH_HEADERS
+    response = requests.post(
+        LOGIN_URL,
+        json={"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD},
+        timeout=10,
+    )
+    response.raise_for_status()
+    token = response.json()["token"]
+    AUTH_HEADERS = {"Authorization": f"Bearer {token}"}
+
 def run_test(text, expected_keyword=None):
     global passed, failed, total_tests
     total_tests += 1
@@ -52,7 +71,12 @@ def run_test(text, expected_keyword=None):
     
     try:
         start_time = time.time()
-        response = requests.post(BASE_URL, json={"transcript": text}, timeout=30)
+        response = requests.post(
+            PROCESS_URL,
+            json={"transcript": text},
+            headers=AUTH_HEADERS,
+            timeout=30,
+        )
         elapsed = time.time() - start_time
         
         if response.status_code == 200:
@@ -87,6 +111,8 @@ def run_test(text, expected_keyword=None):
     except Exception as e:
         print(f"❌ Network Error: {e}")
         failed += 1
+
+login()
 
 # 1. Test every menu item with variations
 for item in MENU_ITEMS:

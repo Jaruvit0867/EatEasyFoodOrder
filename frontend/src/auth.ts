@@ -72,10 +72,10 @@ export function logout(): void {
 }
 
 // Get auth headers for API calls
-export function getAuthHeaders(): Record<string, string> {
+export function getAuthHeaders(baseHeaders: Record<string, string> = {}): Record<string, string> {
     const token = getToken();
     if (token) {
-        return { "Authorization": `Bearer ${token}` };
+        return { ...baseHeaders, "Authorization": `Bearer ${token}` };
     }
-    return {};
+    return baseHeaders;
 }

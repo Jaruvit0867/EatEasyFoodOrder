@@ -61,7 +61,14 @@ THAI_FONT_PATHS = [
 ]
 
 # ============ CORS Configuration ============
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,https://localhost:3000").split(",")
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://localhost:3000,https://localhost:3000"
+    ).split(",")
+    if origin.strip()
+]
 
 
 # ============ Protein Keywords (Must match exactly) ============
@@ -202,6 +209,9 @@ class MenuItemUpdate(BaseModel):
 # ============ Database Setup ============
 def get_db_connection():
     """Get database connection with row factory"""
+    db_dir = os.path.dirname(DATABASE_PATH)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
     return conn
@@ -1256,7 +1266,7 @@ class TextOrderRequest(BaseModel):
     transcript: str
 
 @app.post("/process-text-order", response_model=OrderResponse)
-async def process_text_order(request: TextOrderRequest):
+async def process_text_order(request: TextOrderRequest, _user: str = Depends(require_auth)):
     """Process order from text using Two-Stage Verification"""
     try:
         transcript = request.transcript.strip()
@@ -1394,7 +1404,7 @@ async def process_text_order(request: TextOrderRequest):
         return OrderResponse(success=False, error=f"เกิดข้อผิดพลาด: {str(e)}")
 
 @app.post("/confirm-order", response_model=ConfirmOrderResponse)
-async def confirm_order(request: ConfirmOrderRequest):
+async def confirm_order(request: ConfirmOrderRequest, _user: str = Depends(require_auth)):
     """Save confirmed order to database and print receipt"""
     try:
         order_id = save_order_to_db(request.items, request.total_price)
@@ -1415,7 +1425,7 @@ async def confirm_order(request: ConfirmOrderRequest):
         return ConfirmOrderResponse(success=False, message=f"เกิดข้อผิดพลาด: {str(e)}")
 
 @app.get("/orders")
-async def list_orders():
+async def list_orders(_user: str = Depends(require_auth)):
     """Get all orders (for analytics/admin)"""
     try:
         orders = get_all_orders()
@@ -1424,7 +1434,7 @@ async def list_orders():
         return {"success": False, "error": str(e)}
 
 @app.get("/orders/pending")
-async def list_pending_orders():
+async def list_pending_orders(_user: str = Depends(require_auth)):
     """Get pending orders (for kitchen display)"""
     try:
         orders = get_pending_orders()
@@ -1433,7 +1443,7 @@ async def list_pending_orders():
         return {"success": False, "error": str(e)}
 
 @app.post("/orders/{order_id}/complete")
-async def mark_order_complete(order_id: int):
+async def mark_order_complete(order_id: int, _user: str = Depends(require_auth)):
     """Mark a single order as completed"""
     try:
         success = complete_order(order_id)
@@ -1444,7 +1454,7 @@ async def mark_order_complete(order_id: int):
         return {"success": False, "error": str(e)}
 
 @app.post("/orders/{order_id}/cancel")
-async def mark_order_cancelled(order_id: int):
+async def mark_order_cancelled(order_id: int, _user: str = Depends(require_auth)):
     """Mark a single order as cancelled"""
     try:
         success = cancel_order(order_id)
@@ -1456,7 +1466,7 @@ async def mark_order_cancelled(order_id: int):
 
 
 @app.delete("/orders")
-async def complete_all_orders():
+async def complete_all_orders(_user: str = Depends(require_auth)):
     """Mark all pending orders as completed (kitchen reset - data preserved for analytics)"""
     try:
         count = complete_all_pending_orders()
@@ -1465,7 +1475,7 @@ async def complete_all_orders():
         return {"success": False, "error": str(e)}
 
 @app.delete("/orders/delete-all")
-async def delete_all_orders():
+async def delete_all_orders(_user: str = Depends(require_auth)):
     """Actually delete all orders (admin only - use with caution)"""
     try:
         clear_all_orders()
@@ -1475,7 +1485,7 @@ async def delete_all_orders():
 
 # ============ Menu Management Endpoints ============
 @app.get("/menu-items")
-async def list_menu_items():
+async def list_menu_items(_user: str = Depends(require_auth)):
     """Get all menu items"""
     try:
         items = get_all_menu_items()
@@ -1484,7 +1494,7 @@ async def list_menu_items():
         return {"success": False, "error": str(e)}
 
 @app.post("/menu-items")
-async def add_menu_item(item: MenuItemCreate):
+async def add_menu_item(item: MenuItemCreate, _user: str = Depends(require_auth)):
     """Add a new menu item"""
     try:
         item_id = create_menu_item(item)
@@ -1495,7 +1505,7 @@ async def add_menu_item(item: MenuItemCreate):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/menu-items/{item_id}")
-async def edit_menu_item(item_id: int, updates: MenuItemUpdate):
+async def edit_menu_item(item_id: int, updates: MenuItemUpdate, _user: str = Depends(require_auth)):
     """Update a menu item"""
     try:
         success = update_menu_item(item_id, updates)
@@ -1506,7 +1516,7 @@ async def edit_menu_item(item_id: int, updates: MenuItemUpdate):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/menu-items/{item_id}")
-async def remove_menu_item(item_id: int):
+async def remove_menu_item(item_id: int, _user: str = Depends(require_auth)):
     """Delete a menu item"""
     try:
         success = delete_menu_item(item_id)
@@ -1517,7 +1527,7 @@ async def remove_menu_item(item_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/menu-cache/reload")
-async def refresh_cache():
+async def refresh_cache(_user: str = Depends(require_auth)):
     """Manually reload menu cache"""
     try:
         reload_menu_cache()
@@ -1532,7 +1542,7 @@ async def refresh_cache():
 
 # ============ Analytics Endpoints ============
 @app.get("/analytics/summary")
-async def get_summary():
+async def get_summary(_user: str = Depends(require_auth)):
     """Get sales summary analytics"""
     try:
         summary = get_analytics_summary()
@@ -1541,7 +1551,7 @@ async def get_summary():
         return {"success": False, "error": str(e)}
 
 @app.get("/analytics/top-items")
-async def get_top_selling(limit: int = 10):
+async def get_top_selling(limit: int = 10, _user: str = Depends(require_auth)):
     """Get top selling items"""
     try:
         items = get_top_items(limit)
@@ -1550,7 +1560,7 @@ async def get_top_selling(limit: int = 10):
         return {"success": False, "error": str(e)}
 
 @app.get("/analytics/daily-sales")
-async def get_daily(days: int = 7):
+async def get_daily(days: int = 7, _user: str = Depends(require_auth)):
     """Get daily sales data"""
     try:
         data = get_daily_sales(days)
@@ -1559,7 +1569,7 @@ async def get_daily(days: int = 7):
         return {"success": False, "error": str(e)}
 
 @app.get("/analytics/order-stats")
-async def get_order_stats(days: int = 7):
+async def get_order_stats(days: int = 7, _user: str = Depends(require_auth)):
     """Get order statistics by status"""
     try:
         stats = get_order_statistics(days)
@@ -1569,7 +1579,7 @@ async def get_order_stats(days: int = 7):
 
 
 @app.get("/addons")
-async def get_addons():
+async def get_addons(_user: str = Depends(require_auth)):
     """Get available add-on options"""
     return {"addons": [
         {"name": name, "price": info["price"], "emoji": info["emoji"]}

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { API_URL } from "../../config";
-import { checkAuth, logout } from "../../auth";
+import { checkAuth, getAuthHeaders, logout } from "../../auth";
 
 const BACKEND_URL = API_URL;
 
@@ -50,7 +50,9 @@ export default function KitchenPage() {
 
     const fetchOrders = async () => {
         try {
-            const res = await fetch(`${BACKEND_URL}/orders/pending`, { credentials: "include" });
+            const res = await fetch(`${BACKEND_URL}/orders/pending`, {
+                headers: getAuthHeaders(),
+            });
             const data = await res.json();
             if (data.success) {
                 setOrders(data.orders);
@@ -64,7 +66,10 @@ export default function KitchenPage() {
 
     const handleComplete = async (orderId: number) => {
         try {
-            await fetch(`${BACKEND_URL}/orders/${orderId}/complete`, { method: "POST", credentials: "include" });
+            await fetch(`${BACKEND_URL}/orders/${orderId}/complete`, {
+                method: "POST",
+                headers: getAuthHeaders(),
+            });
             fetchOrders();
         } catch (error) {
             console.error("Error completing order:", error);
@@ -74,7 +79,10 @@ export default function KitchenPage() {
     const handleCancel = async (orderId: number) => {
         if (!confirm("ต้องการยกเลิกออเดอร์นี้?")) return;
         try {
-            await fetch(`${BACKEND_URL}/orders/${orderId}/cancel`, { method: "POST", credentials: "include" });
+            await fetch(`${BACKEND_URL}/orders/${orderId}/cancel`, {
+                method: "POST",
+                headers: getAuthHeaders(),
+            });
             fetchOrders();
         } catch (error) {
             console.error("Error cancelling order:", error);

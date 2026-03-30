@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { API_URL } from "../../config";
-import { checkAuth, logout } from "../../auth";
+import { checkAuth, getAuthHeaders, logout } from "../../auth";
 
 const BACKEND_URL = API_URL;
 
@@ -99,7 +99,9 @@ export default function DashboardPage() {
     // Fetch order stats
     const fetchOrderStats = async () => {
         try {
-            const res = await fetch(`${BACKEND_URL}/analytics/order-stats?days=${scopeDays}`);
+            const res = await fetch(`${BACKEND_URL}/analytics/order-stats?days=${scopeDays}`, {
+                headers: getAuthHeaders(),
+            });
             const data = await res.json();
             if (data.success) {
                 setOrderStats(data.data);
@@ -113,8 +115,12 @@ export default function DashboardPage() {
     const fetchAnalytics = async () => {
         try {
             const [topRes, dailyRes] = await Promise.all([
-                fetch(`${BACKEND_URL}/analytics/top-items?limit=10&days=${scopeDays}`),
-                fetch(`${BACKEND_URL}/analytics/daily-sales?days=${scopeDays}`)
+                fetch(`${BACKEND_URL}/analytics/top-items?limit=10&days=${scopeDays}`, {
+                    headers: getAuthHeaders(),
+                }),
+                fetch(`${BACKEND_URL}/analytics/daily-sales?days=${scopeDays}`, {
+                    headers: getAuthHeaders(),
+                })
             ]);
 
             const topData = await topRes.json();
@@ -130,7 +136,9 @@ export default function DashboardPage() {
     // Fetch menu items
     const fetchMenuItems = async () => {
         try {
-            const res = await fetch(`${BACKEND_URL}/menu-items`);
+            const res = await fetch(`${BACKEND_URL}/menu-items`, {
+                headers: getAuthHeaders(),
+            });
             const data = await res.json();
             if (data.success) {
                 setMenuItems(data.items);
@@ -143,7 +151,9 @@ export default function DashboardPage() {
     // Fetch all orders
     const fetchOrders = async () => {
         try {
-            const res = await fetch(`${BACKEND_URL}/orders`);
+            const res = await fetch(`${BACKEND_URL}/orders`, {
+                headers: getAuthHeaders(),
+            });
             const data = await res.json();
             if (data.success) {
                 setOrders(data.orders);
@@ -169,13 +179,13 @@ export default function DashboardPage() {
             if (editingItem) {
                 await fetch(`${BACKEND_URL}/menu-items/${editingItem.id}`, {
                     method: "PUT",
-                    headers: { "Content-Type": "application/json" },
+                    headers: getAuthHeaders({ "Content-Type": "application/json" }),
                     body: JSON.stringify(formData)
                 });
             } else {
                 await fetch(`${BACKEND_URL}/menu-items`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: getAuthHeaders({ "Content-Type": "application/json" }),
                     body: JSON.stringify(formData)
                 });
             }
@@ -191,7 +201,10 @@ export default function DashboardPage() {
     const handleDelete = async (id: number) => {
         if (!confirm("ต้องการลบเมนูนี้ใช่หรือไม่?")) return;
         try {
-            await fetch(`${BACKEND_URL}/menu-items/${id}`, { method: "DELETE" });
+            await fetch(`${BACKEND_URL}/menu-items/${id}`, {
+                method: "DELETE",
+                headers: getAuthHeaders(),
+            });
             fetchMenuItems();
         } catch (error) {
             console.error("Error deleting:", error);
@@ -202,7 +215,7 @@ export default function DashboardPage() {
         try {
             await fetch(`${BACKEND_URL}/menu-items/${item.id}`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
+                headers: getAuthHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({ is_active: !item.is_active })
             });
             fetchMenuItems();
@@ -250,7 +263,10 @@ export default function DashboardPage() {
         if (!confirm("กรุณายืนยันอีกครั้งว่าจะลบข้อมูลจริงๆ?")) return;
 
         try {
-            const res = await fetch(`${BACKEND_URL}/orders/delete-all`, { method: "DELETE" });
+            const res = await fetch(`${BACKEND_URL}/orders/delete-all`, {
+                method: "DELETE",
+                headers: getAuthHeaders(),
+            });
             const data = await res.json();
             if (data.success) {
                 alert("✅ ล้างข้อมูลสำเร็จเรียบร้อย");
