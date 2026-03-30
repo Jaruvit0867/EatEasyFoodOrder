@@ -234,6 +234,11 @@ canvas {
 }
 
 @media (orientation: landscape) and (min-width: 540px) and (max-width: 1279px) {
+  .order-shell {
+    padding-inline: 0.75rem;
+    padding-block: 0.75rem;
+  }
+
   .order-layout {
     grid-template-columns: minmax(0, 1.04fr) minmax(260px, 0.96fr);
     align-items: stretch;
@@ -252,9 +257,52 @@ canvas {
     min-width: 0;
   }
 
+  .order-header {
+    margin-bottom: 0.875rem;
+    padding-bottom: 0.875rem;
+    gap: 0.875rem;
+  }
+
+  .order-title {
+    font-size: clamp(2rem, 4.8vw, 3rem);
+    line-height: 0.95;
+  }
+
+  .order-status-pill,
+  .order-cart-count {
+    padding: 0.45rem 0.8rem;
+    font-size: 0.78rem;
+  }
+
+  .order-manual-button,
+  .order-permission-button {
+    padding: 0.75rem 1rem;
+    font-size: 0.82rem;
+  }
+
+  .order-permission-card,
+  .order-feedback-card {
+    padding: 0.875rem 1rem;
+  }
+
+  .order-permission-content {
+    gap: 0.75rem;
+  }
+
+  .order-permission-title {
+    font-size: 0.92rem;
+  }
+
+  .order-permission-desc,
+  .order-permission-error {
+    font-size: 0.78rem;
+    line-height: 1.35;
+  }
+
   .order-mic-panel {
     min-height: 0;
-    padding-block: 1.5rem;
+    padding-block: 1rem;
+    padding-inline: 1rem;
   }
 
   .order-mic-button {
@@ -262,12 +310,67 @@ canvas {
     height: clamp(13rem, 30vw, 18rem);
   }
 
+  .order-mic-icon {
+    width: clamp(3rem, 5vw, 4.5rem);
+    height: clamp(3rem, 5vw, 4.5rem);
+  }
+
+  .order-mic-label {
+    font-size: clamp(1.2rem, 2.6vw, 1.9rem);
+    line-height: 1.1;
+  }
+
+  .order-mic-hint {
+    font-size: 0.76rem;
+  }
+
+  .order-recording-bars {
+    margin-top: 1rem;
+    height: 2.75rem;
+  }
+
   .order-transcript-panel {
-    padding: 1rem 1.25rem;
+    padding: 0.875rem 1rem;
+  }
+
+  .order-transcript-title {
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .order-transcript-body {
+    max-height: 5rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .order-cart-header {
+    padding: 1rem;
+  }
+
+  .order-cart-title {
+    font-size: 1.55rem;
+  }
+
+  .order-empty-state {
+    padding: 1.5rem 1rem;
+  }
+
+  .order-empty-icon {
+    width: 2.8rem;
+    height: 2.8rem;
+  }
+
+  .order-empty-title {
+    font-size: 1.35rem;
   }
 }
 
 @media (orientation: landscape) and (min-width: 540px) and (max-width: 767px) {
+  .order-shell {
+    padding-inline: 0.5rem;
+    padding-block: 0.5rem;
+  }
+
   .order-main-panel {
     padding: 1rem;
   }
@@ -276,9 +379,25 @@ canvas {
     min-width: 0;
   }
 
+  .order-header {
+    align-items: flex-start;
+  }
+
+  .order-title {
+    font-size: clamp(1.65rem, 5vw, 2.2rem);
+  }
+
   .order-mic-button {
     width: clamp(10.5rem, 28vw, 13rem);
     height: clamp(10.5rem, 28vw, 13rem);
+  }
+
+  .order-cart-title {
+    font-size: 1.2rem;
+  }
+
+  .order-empty-title {
+    font-size: 1.05rem;
   }
 }
 
@@ -293,13 +412,40 @@ canvas {
     min-height: calc(100dvh - 2rem);
   }
 
+  .order-header {
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .order-title {
+    font-size: clamp(1.55rem, 4vw, 2rem);
+  }
+
   .order-mic-panel {
-    padding-block: 1.25rem;
+    padding-block: 0.75rem;
+    padding-inline: 0.875rem;
   }
 
   .order-mic-button {
-    width: clamp(11.5rem, 28vw, 15rem);
-    height: clamp(11.5rem, 28vw, 15rem);
+    width: clamp(9.75rem, 25vw, 12rem);
+    height: clamp(9.75rem, 25vw, 12rem);
+  }
+
+  .order-mic-label {
+    font-size: clamp(1rem, 2.2vw, 1.35rem);
+  }
+
+  .order-recording-bars {
+    margin-top: 0.75rem;
+    height: 2.25rem;
+  }
+
+  .order-transcript-body {
+    max-height: 4rem;
+  }
+
+  .order-empty-state {
+    padding: 1rem 0.75rem;
   }
 }
 

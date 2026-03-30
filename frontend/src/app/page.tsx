@@ -848,15 +848,15 @@ export default function VoiceOrderPage() {
 
   return (
     <>
-      <main className="page-frame min-h-screen px-4 py-5 sm:px-6 lg:px-8">
+      <main className="order-shell page-frame min-h-screen px-4 py-5 sm:px-6 lg:px-8">
         <div className="order-layout mx-auto grid max-w-[1700px] gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(380px,0.92fr)]">
           <section className="order-panel order-main-panel panel-surface flex min-h-[calc(100vh-2.5rem)] flex-col rounded-[2rem] p-5 sm:p-7 lg:p-8">
-            <header className="mb-5 flex items-start justify-between gap-4 border-b border-white/8 pb-5">
+            <header className="order-header mb-5 flex items-start justify-between gap-4 border-b border-white/8 pb-5">
               <div className="space-y-3">
-                <h1 className="display-font text-3xl text-white sm:text-4xl">EatEasy Order</h1>
+                <h1 className="order-title display-font text-3xl text-white lg:text-4xl">EatEasy Order</h1>
                 <div className="flex flex-wrap items-center gap-2">
                   <span
-                    className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium ${appState === "error"
+                    className={`order-status-pill inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium ${appState === "error"
                       ? "bg-rose-400/12 text-rose-100"
                       : appState === "confirmed"
                         ? "bg-emerald-400/12 text-emerald-100"
@@ -880,14 +880,14 @@ export default function VoiceOrderPage() {
                   </span>
 
                   {appState === "recording" && (
-                    <span className="inline-flex items-center gap-2 rounded-full bg-white/6 px-3 py-1.5 text-sm text-white">
+                    <span className="order-status-pill inline-flex items-center gap-2 rounded-full bg-white/6 px-3 py-1.5 text-sm text-white">
                       <Clock3 className="h-4 w-4" />
                       {formatTime(recordingTime)}
                     </span>
                   )}
 
                   {pendingNoteItem && (
-                    <span className="inline-flex items-center gap-2 rounded-full bg-white/6 px-3 py-1.5 text-sm text-white">
+                    <span className="order-status-pill inline-flex items-center gap-2 rounded-full bg-white/6 px-3 py-1.5 text-sm text-white">
                       <FilePenLine className="h-4 w-4 text-[var(--accent)]" />
                       {pendingNoteItem.menu_name}
                     </span>
@@ -897,7 +897,7 @@ export default function VoiceOrderPage() {
 
               <button
                 onClick={openManualModal}
-                className="inline-flex items-center gap-2 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                className="order-manual-button inline-flex items-center gap-2 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-sm font-semibold whitespace-nowrap text-white transition-colors hover:bg-white/10"
               >
                 <Plus className="h-4 w-4 text-[var(--accent)]" />
                 เพิ่มรายการเอง
@@ -906,20 +906,20 @@ export default function VoiceOrderPage() {
 
             <div className="flex flex-1 flex-col gap-4">
               {microphonePermission !== "granted" && microphonePermission !== "checking" && (
-                <div className="panel-surface-soft rounded-[1.5rem] px-4 py-4 sm:px-5">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="order-permission-card panel-surface-soft rounded-[1.5rem] px-4 py-4 sm:px-5">
+                  <div className="order-permission-content flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-white">อนุญาตไมโครโฟนก่อนเริ่มสั่งอาหาร</p>
-                      <p className="mt-1 text-sm text-[var(--muted)]">
+                      <p className="order-permission-title text-sm font-semibold text-white">อนุญาตไมโครโฟนก่อนใช้งาน</p>
+                      <p className="order-permission-desc mt-1 text-sm text-[var(--muted)]">
                         {microphonePermission === "unsupported"
-                          ? "เบราว์เซอร์นี้ไม่รองรับการใช้งานไมโครโฟน"
-                          : "กดปุ่มด้านขวาเพื่อให้เบราว์เซอร์ขอสิทธิ์ใช้งานไมโครโฟน"}
+                          ? "เบราว์เซอร์นี้ไม่รองรับไมโครโฟน"
+                          : "กดปุ่มเพื่อเปิดสิทธิ์ไมโครโฟน"}
                       </p>
                     </div>
                     {microphonePermission !== "unsupported" && (
                       <button
                         onClick={() => void requestMicrophonePermission()}
-                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                        className="order-permission-button inline-flex items-center justify-center gap-2 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-sm font-semibold whitespace-nowrap text-white transition-colors hover:bg-white/10"
                       >
                         <Mic className="h-4 w-4 text-[var(--accent)]" />
                         อนุญาตไมโครโฟน
@@ -928,13 +928,13 @@ export default function VoiceOrderPage() {
                   </div>
 
                   {microphonePermissionError && (
-                    <p className="mt-3 text-sm text-rose-100">{microphonePermissionError}</p>
+                    <p className="order-permission-error mt-3 text-sm text-rose-100">{microphonePermissionError}</p>
                   )}
                 </div>
               )}
 
               {(appState === "error" && errorMessage) || (appState === "confirmed" && confirmationMessage) || pendingNoteItem ? (
-                <div className="panel-surface-soft rounded-[1.5rem] px-4 py-3 sm:px-5">
+                <div className="order-feedback-card panel-surface-soft rounded-[1.5rem] px-4 py-3 sm:px-5">
                   {pendingNoteItem && appState !== "error" && appState !== "confirmed" && (
                     <p className="text-sm text-white">
                       กำลังเพิ่มรายละเอียดให้ <span className="font-semibold text-[var(--accent)]">{pendingNoteItem.menu_name}</span>
@@ -978,39 +978,39 @@ export default function VoiceOrderPage() {
                     <div className="relative z-10 flex flex-col items-center gap-3">
                       {(appState === "idle" || appState === "review" || appState === "error") && (
                         <>
-                          <Mic className={`h-16 w-16 sm:h-24 sm:w-24 ${noteMode >= 0 ? "text-[var(--accent)]" : "text-white"}`} />
-                          <p className="text-2xl font-semibold text-white sm:text-3xl">
+                          <Mic className={`order-mic-icon h-16 w-16 lg:h-24 lg:w-24 ${noteMode >= 0 ? "text-[var(--accent)]" : "text-white"}`} />
+                          <p className="order-mic-label text-2xl font-semibold text-white lg:text-3xl">
                             {noteMode >= 0 ? "บันทึกรายละเอียด" : cart.length > 0 ? "เพิ่มรายการ" : "เริ่มสั่งอาหาร"}
                           </p>
                         </>
                       )}
                       {appState === "recording" && (
                         <>
-                          <Mic className={`h-16 w-16 sm:h-24 sm:w-24 ${noteMode >= 0 ? "text-[var(--accent)]" : "text-rose-200"}`} />
+                          <Mic className={`order-mic-icon h-16 w-16 lg:h-24 lg:w-24 ${noteMode >= 0 ? "text-[var(--accent)]" : "text-rose-200"}`} />
                           <div className="inline-flex items-center gap-2 rounded-full bg-black/20 px-4 py-2 text-sm text-white/90">
                             <Clock3 className="h-4 w-4" />
                             {formatTime(recordingTime)}
                           </div>
-                          <p className="text-sm text-white/75">แตะอีกครั้งเพื่อหยุด</p>
+                          <p className="order-mic-hint text-sm text-white/75">แตะอีกครั้งเพื่อหยุด</p>
                         </>
                       )}
                       {appState === "processing" && (
                         <>
-                          <LoaderCircle className="h-16 w-16 animate-spin text-sky-100 sm:h-24 sm:w-24" />
-                          <p className="text-lg font-semibold text-white sm:text-2xl">กำลังประมวลผล</p>
+                          <LoaderCircle className="order-mic-icon h-16 w-16 animate-spin text-sky-100 lg:h-24 lg:w-24" />
+                          <p className="order-mic-label text-lg font-semibold text-white lg:text-2xl">กำลังประมวลผล</p>
                         </>
                       )}
                       {appState === "confirmed" && (
                         <>
-                          <CircleCheckBig className="h-16 w-16 text-emerald-100 sm:h-24 sm:w-24" />
-                          <p className="text-lg font-semibold text-white sm:text-2xl">ออเดอร์ถูกบันทึกแล้ว</p>
+                          <CircleCheckBig className="order-mic-icon h-16 w-16 text-emerald-100 lg:h-24 lg:w-24" />
+                          <p className="order-mic-label text-lg font-semibold text-white lg:text-2xl">ออเดอร์ถูกบันทึกแล้ว</p>
                         </>
                       )}
                     </div>
                   </button>
 
                   {appState === "recording" && (
-                    <div className="mt-8 flex h-16 items-end justify-center gap-2">
+                    <div className="order-recording-bars mt-8 flex h-16 items-end justify-center gap-2">
                       {[36, 68, 52, 84, 46, 76].map((height, index) => (
                         <div
                           key={height}
@@ -1026,13 +1026,13 @@ export default function VoiceOrderPage() {
                 </div>
 
                 <div className="order-transcript-panel panel-surface-soft rounded-[1.75rem] p-5">
-                  <p className="mb-3 text-sm font-semibold text-white">ข้อความล่าสุด</p>
+                  <p className="order-transcript-title mb-3 text-sm font-semibold text-white">ข้อความล่าสุด</p>
                   {liveTranscript ? (
-                    <div className="custom-scrollbar max-h-36 overflow-y-auto rounded-[1.25rem] border border-white/8 bg-black/10 px-4 py-3">
-                      <p className="text-base leading-7 text-white sm:text-lg">{liveTranscript}</p>
+                    <div className="order-transcript-body custom-scrollbar max-h-36 overflow-y-auto rounded-[1.25rem] border border-white/8 bg-black/10 px-4 py-3">
+                      <p className="text-base leading-7 text-white lg:text-lg">{liveTranscript}</p>
                     </div>
                   ) : (
-                    <div className="rounded-[1.25rem] border border-dashed border-white/8 px-4 py-6 text-sm text-[var(--muted)]">
+                    <div className="order-transcript-body rounded-[1.25rem] border border-dashed border-white/8 px-4 py-6 text-sm text-[var(--muted)]">
                       ยังไม่มีข้อความ
                     </div>
                   )}
@@ -1071,7 +1071,7 @@ export default function VoiceOrderPage() {
           </section>
 
           <section className="order-panel order-cart-panel panel-surface flex min-h-[calc(100vh-2.5rem)] flex-col rounded-[2rem]">
-            <div className="border-b border-white/8 px-5 py-5 sm:px-6">
+            <div className="order-cart-header border-b border-white/8 px-5 py-5 sm:px-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="mb-3 flex items-center gap-3">
@@ -1079,12 +1079,12 @@ export default function VoiceOrderPage() {
                       <ClipboardList className="h-5 w-5" />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-bold text-white">รายการอาหาร</h2>
+                      <h2 className="order-cart-title text-2xl font-bold text-white">รายการอาหาร</h2>
                     </div>
                   </div>
                 </div>
 
-                <div className="rounded-full border border-[rgba(243,162,79,0.22)] bg-[rgba(243,162,79,0.08)] px-4 py-2 text-sm font-semibold text-[var(--accent)]">
+                <div className="order-cart-count rounded-full border border-[rgba(243,162,79,0.22)] bg-[rgba(243,162,79,0.08)] px-4 py-2 text-sm font-semibold text-[var(--accent)]">
                   {cart.length} รายการ
                 </div>
               </div>
@@ -1092,12 +1092,12 @@ export default function VoiceOrderPage() {
 
             <div className="custom-scrollbar flex-1 overflow-y-auto px-4 py-4 sm:px-5">
               {cart.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center rounded-[1.8rem] border border-dashed border-white/10 px-6 py-16 text-center">
-                  <ClipboardList className="mb-5 h-16 w-16 text-[var(--muted)]" />
-                  <h3 className="text-2xl font-bold text-white">ยังไม่มีรายการในตะกร้า</h3>
+                <div className="order-empty-state flex h-full flex-col items-center justify-center rounded-[1.8rem] border border-dashed border-white/10 px-6 py-16 text-center">
+                  <ClipboardList className="order-empty-icon mb-5 h-16 w-16 text-[var(--muted)]" />
+                  <h3 className="order-empty-title text-2xl font-bold text-white">ยังไม่มีรายการในตะกร้า</h3>
                   <button
                     onClick={openManualModal}
-                    className="mt-6 inline-flex items-center gap-2 rounded-2xl border border-white/8 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                    className="order-manual-button mt-6 inline-flex items-center gap-2 rounded-2xl border border-white/8 bg-white/5 px-5 py-3 text-sm font-semibold whitespace-nowrap text-white transition-colors hover:bg-white/10"
                   >
                     <Plus className="h-4 w-4 text-[var(--accent)]" />
                     เพิ่มรายการเอง
