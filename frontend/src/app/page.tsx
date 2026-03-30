@@ -2,6 +2,30 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
+import {
+  ChefHat,
+  ChevronDown,
+  CircleAlert,
+  CircleCheckBig,
+  ClipboardList,
+  Clock3,
+  CookingPot,
+  Egg,
+  FilePenLine,
+  HandPlatter,
+  LoaderCircle,
+  Mic,
+  Minus,
+  Package,
+  Plus,
+  Search,
+  Sparkles,
+  Trash2,
+  UtensilsCrossed,
+  WandSparkles,
+  X,
+} from "lucide-react";
 import { API_URL } from "../config";
 import { checkAuth, getAuthHeaders } from "../auth";
 
@@ -45,6 +69,27 @@ interface OrderResponse {
 }
 
 type AppState = "idle" | "recording" | "processing" | "review" | "confirmed" | "error";
+
+const ADDON_ICON_MAP: Record<string, LucideIcon> = {
+  ไข่ดาว: Egg,
+  ไข่เจียว: Egg,
+  พิเศษ: Sparkles,
+  กับข้าว: CookingPot,
+  เพิ่มข้าว: HandPlatter,
+};
+
+const DINE_OPTION_UI = {
+  "dine-in": {
+    label: "ทานที่ร้าน",
+    icon: UtensilsCrossed,
+    className: "bg-sky-400/12 text-sky-200",
+  },
+  takeaway: {
+    label: "กลับบ้าน",
+    icon: Package,
+    className: "bg-[rgba(243,162,79,0.18)] text-[var(--accent)]",
+  },
+} as const;
 
 // Backend URL: Use relative "/api" path to leverage Next.js Rewrites (Proxies to 8000)
 // This solves Mixed Content (HTTPS->HTTP) and CORS/Network issues on mobile
@@ -697,12 +742,21 @@ export default function VoiceOrderPage() {
     };
   }, []);
 
+  const pendingNoteItem = noteMode >= 0 ? cart[noteMode] : null;
+  const filteredManualItems = menuItems.filter(item => item.name.includes(manualSearch));
+  const selectedManualTotal = selectedManualItem
+    ? (selectedManualItem.base_price + addonOptions.filter(o => manualAddons.includes(o.name)).reduce((sum, addon) => sum + addon.price, 0)) * manualQuantity
+    : 0;
+
   // Show loading while checking auth
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
-        <div className="text-orange-500 text-xl animate-pulse">กำลังตรวจสอบสิทธิ์...</div>
-      </div>
+      <main className="page-frame flex min-h-screen items-center justify-center px-4 py-8">
+        <div className="panel-surface flex w-full max-w-md items-center justify-center gap-3 rounded-[2rem] px-6 py-8 text-[var(--muted)]">
+          <LoaderCircle className="h-5 w-5 animate-spin text-[var(--accent)]" />
+          กำลังตรวจสอบสิทธิ์...
+        </div>
+      </main>
     );
   }
 
@@ -711,439 +765,648 @@ export default function VoiceOrderPage() {
   }
 
   return (
-    <main className="h-[100dvh] w-full bg-[#0f172a] text-white flex flex-col landscape:flex-row overflow-hidden supports-[height:100svh]:h-[100svh]">
-
-      {/* Left Column: Voice Interaction Area */}
-      <section className="w-full landscape:w-1/2 h-1/2 landscape:h-full flex flex-col items-center justify-between p-4 md:p-8 relative border-b landscape:border-b-0 landscape:border-r border-gray-800/50 bg-gradient-to-b from-slate-900 to-slate-900/50 shrink-0">
-
-        {/* 1. Header Branding (Flex item instead of absolute to prevent overlap) */}
-        <div className="w-full text-center mt-2 landscape:mt-4 grow-0">
-          <h1 className="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-orange-400 to-red-500">
-            🍛 EASY Order
-          </h1>
-          <p className="text-gray-500 text-xs md:text-sm hidden landscape:block md:block">สั่งอาหารด้วยเสียงภาษาไทย</p>
-        </div>
-
-        {/* 2. Main Interaction Area (Centered) */}
-        <div className="flex flex-col items-center justify-center gap-4 grow">
-          {/* Status Text */}
-          <div className="text-center h-12 flex flex-col justify-end">
-            {appState === "idle" && noteMode < 0 && <p className="text-lg md:text-2xl text-gray-300 font-medium animate-fade-in">กดปุ่มแล้วพูด</p>}
-            {appState === "idle" && noteMode >= 0 && (
-              <div className="animate-fade-in">
-                <p className="text-sm text-gray-500">{cart[noteMode]?.menu_name}</p>
-                <p className="text-lg md:text-2xl text-orange-400 font-bold">🎤 พูดรายละเอียด</p>
+    <>
+      <main className="page-frame min-h-screen px-4 py-5 sm:px-6 lg:px-8">
+        <div className="mx-auto grid max-w-[1700px] gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(380px,0.92fr)]">
+          <section className="panel-surface flex min-h-[calc(100vh-2.5rem)] flex-col rounded-[2rem] p-5 sm:p-7 lg:p-8">
+            <header className="mb-6 flex flex-col gap-5 border-b border-white/8 pb-6 lg:flex-row lg:items-start lg:justify-between">
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-[var(--muted)]">
+                  <ChefHat className="h-4 w-4 text-[var(--accent)]" />
+                  ระบบสั่งอาหารด้วยเสียง
+                </div>
+                <div>
+                  <p className="section-kicker mb-3">Voice Ordering</p>
+                  <h1 className="display-font text-3xl text-white sm:text-4xl lg:text-5xl">
+                    รับออเดอร์แบบเร็วขึ้น แต่ภาพลักษณ์ยังต้องดูเป็นร้านจริง
+                  </h1>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)] sm:text-base">
+                    ใช้เสียงเพื่อเพิ่มเมนูเข้าตะกร้า แล้วตรวจรายการ แก้ add-on และยืนยันออเดอร์ได้จากหน้าจอเดียว
+                  </p>
+                </div>
               </div>
-            )}
-            {appState === "recording" && noteMode < 0 && <p className="text-xl md:text-3xl text-red-500 font-bold animate-pulse">กำลังฟัง... {formatTime(recordingTime)}</p>}
-            {appState === "recording" && noteMode >= 0 && <p className="text-xl md:text-3xl text-orange-500 font-bold animate-pulse">พูดรายละเอียด... {formatTime(recordingTime)}</p>}
-            {appState === "processing" && <p className="text-xl md:text-2xl text-blue-400 font-bold animate-pulse">กำลังประมวลผล...</p>}
-            {appState === "error" && (
-              <div className="flex flex-col items-center w-full max-w-md mx-auto z-50">
-                <p className="text-sm md:text-lg text-red-400 font-bold bg-red-500/10 px-4 py-2 rounded-xl mb-3 border border-red-500/20">{errorMessage}</p>
-                {suggestions.length > 0 && (
-                  <div className="animate-fade-in w-full">
-                    <p className="text-xs text-gray-500 mb-2">คุณหมายถึงรายการเหล่านี้หรือไม่?</p>
-                    <div className="flex flex-wrap justify-center gap-2">
-                      {suggestions.map((s, i) => (
-                        <button
-                          key={i}
-                          onClick={() => handleSuggestionClick(s)}
-                          className="px-4 py-2 bg-slate-800 hover:bg-orange-500 hover:text-white rounded-lg text-sm md:text-base text-orange-400 border border-slate-700 hover:border-orange-500 transition-all shadow-lg active:scale-95"
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            {appState === "confirmed" && <p className="text-xl md:text-2xl text-green-500 font-bold">{confirmationMessage}</p>}
-          </div>
 
-          {/* Main Microphone Button */}
-          <button
-            onClick={() => {
-              if (appState === "idle" || appState === "error") toggleRecording();
-              else if (appState === "recording") toggleRecording();
-            }}
-            disabled={appState === "processing" || appState === "confirmed"}
-            className={`
-              relative
-              w-40 h-40
-              landscape:w-32 landscape:h-32
-              md:w-64 md:h-64
-              lg:w-72 lg:h-72
-              rounded-full flex flex-col items-center justify-center transition-all duration-500
-              ${appState === "idle" || appState === "review" || appState === "error" ? (noteMode >= 0 ? "bg-orange-500/10 border-4 border-orange-500 hover:scale-105 glow-pulse-orange" : "bg-slate-800/80 hover:bg-slate-700 border-4 border-orange-500/50 hover:border-orange-500 hover:scale-105 glow-pulse-orange animate-float") : ""}
-              ${appState === "recording" ? (noteMode >= 0 ? "bg-orange-500/20 scale-110 border-4 border-orange-500 glow-recording" : "bg-red-500/10 scale-110 border-4 border-red-500 glow-recording") : ""}
-              ${appState === "processing" ? "bg-slate-800 border-4 border-blue-500 opacity-80 cursor-not-allowed" : ""}
-              ${appState === "confirmed" ? "bg-green-500 text-white border-4 border-green-400 scale-100 glow-green" : ""}
-            `}
-          >
-            <div className="relative z-10 flex flex-col items-center">
-              {(appState === "idle" || appState === "review" || appState === "error") && (
-                <>
-                  <svg className={`w-16 h-16 landscape:w-12 landscape:h-12 md:w-24 md:h-24 ${noteMode >= 0 ? "text-orange-400" : "text-orange-500"} mb-2`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
-                  <span className="text-lg landscape:text-base md:text-2xl font-bold text-white">{noteMode >= 0 ? "พูดเลย" : (cart.length > 0 ? "สั่งเพิ่ม" : "เริ่มสั่ง")}</span>
-                </>
-              )}
-              {appState === "recording" && (
-                <svg className={`w-16 h-16 md:w-24 md:h-24 ${noteMode >= 0 ? "text-orange-500" : "text-red-500"}`} fill="currentColor" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" /></svg>
-              )}
-              {appState === "processing" && (
-                <svg className="w-12 h-12 md:w-20 md:h-20 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
-              )}
-              {appState === "confirmed" && (
-                <svg className="w-20 h-20 md:w-32 md:h-32 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-              )}
-            </div>
-          </button>
-        </div>
-
-        {/* 3. Footer / Live Text / Waveform (Compact) */}
-        <div className="w-full max-w-lg px-4 text-center grow-0 mb-2 landscape:mb-4 min-h-[3rem] flex flex-col justify-end items-center">
-          {appState === "recording" && (
-            <div className="w-full h-12 md:h-16 flex items-center justify-center gap-1 mb-2">
-              {/* Fake Waveform Animation (Deterministic) */}
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="w-2 md:w-3 bg-red-500 rounded-full animate-pulse"
-                  style={{
-                    height: `${40 + (i % 3) * 20}%`,
-                    animationDuration: `${0.6 + (i * 0.1)}s`
-                  }}
-                />
-              ))}
-            </div>
-          )}
-
-          {liveTranscript && (
-            <div className="bg-slate-800/80 px-4 py-2 rounded-xl border border-slate-700 backdrop-blur-md max-h-20 overflow-y-auto custom-scrollbar w-full">
-              <p className="text-gray-400 text-[10px] uppercase tracking-wider">Hearing</p>
-              <p className="text-sm md:text-xl text-white font-medium">"{liveTranscript}"</p>
-            </div>
-          )}
-
-          {appState === "error" && (
-            <button onClick={() => { setErrorMessage(""); setAppState("idle"); }} className="text-gray-400 underline hover:text-white text-sm mt-2">
-              ลองใหม่
-            </button>
-          )}
-        </div>
-      </section>
-
-      {/* Right Column: Cart / Order Summary */}
-      <section className="w-full landscape:w-1/2 h-1/2 landscape:h-full bg-[#1e293b] flex flex-col relative shadow-[inset_10px_0_20px_rgba(0,0,0,0.2)]">
-
-        {/* Cart Header (Compact) */}
-        <div className="p-4 md:p-8 pb-2 md:pb-4 border-b border-gray-700/50 flex justify-between items-center bg-[#1e293b] z-10 shrink-0">
-          <div>
-            <h2 className="text-xl md:text-2xl font-bold text-white">🛒 รายการอาหาร</h2>
-          </div>
-          <div className="bg-orange-500/10 text-orange-400 px-3 py-1 rounded-full text-xs md:text-sm font-bold border border-orange-500/20">
-            {cart.length} รายการ
-          </div>
-        </div>
-
-        {/* Scrollable Cart List */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 custom-scrollbar">
-          {cart.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-500 opacity-50 relative">
-              <svg className="w-16 h-16 md:w-24 md:h-24 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-              </svg>
-              <p className="text-base md:text-lg">ยังไม่มีรายการอาหาร</p>
-              <p className="text-xs md:text-sm mb-8">กดปุ่มไมโครโฟนเพื่อสั่งได้เลย</p>
-
-              <button
-                onClick={openManualModal}
-                className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-orange-400 border border-orange-500/30 rounded-xl font-bold transition-all flex items-center gap-2 hover:border-orange-500 hover:text-orange-500 shadow-lg"
-              >
-                <span>+</span> เพิ่มรายการเอง
-              </button>
-            </div>
-          ) : (
-            <>
-              {cart.map((item, index) => (
-                <div key={index} id={`cart-item-${index}`} className={`glass-dark rounded-2xl border border-white/5 relative group animate-slide-in overflow-hidden ${expandedIndex === index ? 'ring-2 ring-orange-500/30' : ''}`}>
-                  {/* Accordion Header - Always Visible, Clickable */}
-                  <div
-                    onClick={() => setExpandedIndex(expandedIndex === index ? -1 : index)}
-                    className="accordion-header p-4 md:p-5 cursor-pointer flex justify-between items-center"
-                  >
-                    <div className="flex items-center gap-3 md:gap-4 flex-1">
-                      <div className="bg-slate-700/50 w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-lg text-gray-400 font-mono text-base md:text-lg font-bold shrink-0">
-                        {index + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-lg md:text-xl font-bold text-white leading-tight truncate">{item.menu_name}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-orange-400 text-sm md:text-base font-medium">{item.price}฿</span>
-                          <span className="text-gray-500">×</span>
-                          <span className="text-white font-bold">{item.quantity}</span>
-                          {item.dineOption && (
-                            <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${item.dineOption === 'dine-in' ? 'bg-blue-500/20 text-blue-400' : 'bg-green-500/20 text-green-400'}`}>
-                              {item.dineOption === 'dine-in' ? '🍽️' : '📦'}
-                            </span>
-                          )}
-                          {item.note && <span className="text-yellow-400 text-xs ml-2 truncate max-w-[100px]">📝 {item.note}</span>}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <p className="text-xl md:text-2xl font-bold text-white">{(item.price || 0) * item.quantity}<span className="text-gray-500 text-sm ml-1">฿</span></p>
-                      <svg className={`accordion-chevron w-5 h-5 text-gray-400 ${expandedIndex === index ? 'expanded' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </div>
-                  </div>
-
-                  {/* Accordion Content - Collapsible */}
-                  <div className={`accordion-content px-4 md:px-5 ${expandedIndex === index ? 'expanded pb-4 md:pb-5' : 'collapsed'}`}>
-                    {/* Add-ons & Quantity Controls */}
-                    <div className="pt-2 md:pt-4 border-t border-gray-800 flex flex-wrap gap-3 md:gap-4 items-end justify-between">
-                      {/* Add-ons */}
-                      <div className="flex flex-wrap gap-2 flex-1">
-                        {item.add_ons && item.add_ons.map((addon, aIdx) => (
-                          <button
-                            key={aIdx}
-                            onClick={() => {
-                              const newAddOns = [...item.add_ons];
-                              newAddOns[aIdx] = { ...addon, selected: !addon.selected };
-                              // Recalculate Logic
-                              const basePrice = (item.price || 0) - item.add_ons.filter(a => a.selected).reduce((sum, a) => sum + a.price, 0);
-                              const newPrice = basePrice + newAddOns.filter(a => a.selected).reduce((sum, a) => sum + a.price, 0);
-                              updateCartItem(index, { ...item, add_ons: newAddOns, price: newPrice });
-                            }}
-                            className={`px-4 py-2 md:px-5 md:py-3 rounded-xl text-sm md:text-base font-bold transition-all border-2 ${addon.selected
-                              ? "bg-green-500/20 text-green-400 border-green-500"
-                              : "bg-slate-800 text-gray-400 border-slate-700 hover:border-gray-500 hover:bg-slate-700"
-                              }`}
-                          >
-                            {addon.selected ? "✓ " : "+ "}{addon.name}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Quantity Stepper */}
-                      <div className="flex items-center gap-1 md:gap-2 bg-slate-800 rounded-xl p-1 md:p-1.5 border border-slate-700">
-                        <button
-                          onClick={() => {
-                            if (item.quantity > 1) updateCartItem(index, { ...item, quantity: item.quantity - 1 });
-                            else deleteFromCart(index);
-                          }}
-                          className="w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-colors active:bg-slate-500"
-                        >
-                          <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
-                        </button>
-                        <span className="w-10 md:w-14 text-center text-xl md:text-2xl font-bold text-white">{item.quantity}</span>
-                        <button
-                          onClick={() => updateCartItem(index, { ...item, quantity: item.quantity + 1 })}
-                          className="w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-colors active:bg-slate-500"
-                        >
-                          <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Note Section (Original Style) */}
-                    <div className="mt-4 pt-4 border-t border-gray-800">
-                      {item.note ? (
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <span className="text-xl md:text-2xl">📝</span>
-                            <span className="text-yellow-400 text-lg md:text-xl">{item.note}</span>
-                          </div>
-                          <button
-                            onClick={() => { setNoteMode(index); }}
-                            className="px-4 py-2 bg-slate-800 rounded-lg text-sm md:text-base text-gray-300 hover:text-white hover:bg-slate-700 transition-colors"
-                          >
-                            แก้ไข
-                          </button>
-                        </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:w-[22rem]">
+                <div className="panel-surface-soft rounded-[1.5rem] p-4">
+                  <p className="mb-2 text-sm text-[var(--muted)]">สถานะระบบ</p>
+                  <div className="flex items-center gap-3">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${appState === "error" ? "bg-rose-400/14 text-rose-200" :
+                      appState === "confirmed" ? "bg-emerald-400/14 text-emerald-100" :
+                        appState === "processing" ? "bg-sky-400/14 text-sky-100" :
+                          appState === "recording" ? "bg-orange-400/16 text-[var(--accent)]" :
+                            "bg-white/6 text-white"
+                      }`}>
+                      {appState === "error" ? (
+                        <CircleAlert className="h-5 w-5" />
+                      ) : appState === "confirmed" ? (
+                        <CircleCheckBig className="h-5 w-5" />
+                      ) : appState === "processing" ? (
+                        <LoaderCircle className="h-5 w-5 animate-spin" />
                       ) : (
-                        <button
-                          onClick={() => {
-                            setNoteMode(index);
-                            // Small timeout to allow state update and then start recording
-                            setTimeout(() => startRecording(), 50);
-                          }}
-                          className="w-full py-4 text-lg md:text-xl text-gray-300 hover:text-orange-400 bg-slate-800/50 hover:bg-orange-500/10 border-2 border-dashed border-gray-700 hover:border-orange-500/50 rounded-xl transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
-                        >
-                          <span className="text-orange-500 text-2xl">🎤</span>
-                          <span className="font-bold">เพิ่มรายละเอียด</span>
-                          <span className="text-base text-gray-500 font-normal">(พูดได้เลย เช่น ไม่เผ็ด, ใส่กล่อง, เลือกเส้น)</span>
-                        </button>
+                        <Mic className="h-5 w-5" />
                       )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white">
+                        {appState === "idle" && noteMode < 0 && "พร้อมรับออเดอร์"}
+                        {appState === "idle" && noteMode >= 0 && "โหมดเพิ่มรายละเอียด"}
+                        {appState === "recording" && (noteMode >= 0 ? "กำลังบันทึกรายละเอียด" : "กำลังฟังคำสั่ง")}
+                        {appState === "processing" && "กำลังประมวลผล"}
+                        {appState === "error" && "มีข้อผิดพลาด"}
+                        {appState === "confirmed" && "บันทึกสำเร็จ"}
+                      </p>
+                      <p className="text-xs text-[var(--muted)]">
+                        {appState === "recording" ? formatTime(recordingTime) : `${cart.length} รายการในตะกร้า`}
+                      </p>
                     </div>
                   </div>
                 </div>
-              ))}
 
-              <button
-                onClick={openManualModal}
-                className="w-full py-4 mt-4 border-2 border-dashed border-gray-700 hover:border-orange-500/50 rounded-xl text-gray-400 hover:text-orange-400 font-bold transition-all flex items-center justify-center gap-2 bg-slate-800/20 hover:bg-slate-800/50"
-              >
-                <span className="text-2xl">+</span> เพิ่มรายการอาหาร
-              </button>
-            </>
-          )}
-        </div>
+                <button
+                  onClick={openManualModal}
+                  className="panel-surface-soft flex rounded-[1.5rem] p-4 text-left transition-transform hover:-translate-y-0.5"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/6 text-[var(--accent)]">
+                      <WandSparkles className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white">เพิ่มรายการเอง</p>
+                      <p className="text-xs text-[var(--muted)]">ค้นหาเมนูแล้วปรับ add-on แบบ manual</p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </header>
 
-        {/* Checkout Footer */}
-        {cart.length > 0 && (
-          <div className="p-4 md:p-8 glass border-t border-white/10 shadow-[0_-10px_40px_rgba(0,0,0,0.4)] z-10 shrink-0 glow-border-top">
-            <div className="flex justify-between items-end mb-3 md:mb-6">
-              <span className="text-gray-400 text-sm md:text-base">ยอดรวมทั้งสิ้น</span>
-              <div className="text-right">
-                <span className="text-3xl md:text-4xl font-bold gradient-text-orange">{getCartTotal()}</span>
-                <span className="text-gray-400 ml-2 text-sm md:text-base">THB</span>
+            <div className="grid flex-1 gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+              <div className="flex flex-col gap-4">
+                <div className="panel-surface-soft rounded-[1.75rem] p-5 sm:p-6">
+                  <p className="section-kicker mb-3">Now Listening</p>
+                  {appState === "idle" && noteMode < 0 && (
+                    <>
+                      <h2 className="text-2xl font-semibold text-white sm:text-3xl">แตะปุ่มกลางแล้วเริ่มพูดรายการอาหาร</h2>
+                      <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                        ตัวอย่างเช่น “ข้าวกะเพราหมูไข่ดาว” หรือ “ข้าวผัดกุ้งพิเศษ”
+                      </p>
+                    </>
+                  )}
+                  {appState === "idle" && noteMode >= 0 && (
+                    <>
+                      <h2 className="text-2xl font-semibold text-white sm:text-3xl">เพิ่มรายละเอียดให้ {pendingNoteItem?.menu_name}</h2>
+                      <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                        พูดข้อความกำกับอาหารได้เลย เช่น ไม่เผ็ด ใส่กล่อง หรือเลือกเส้น
+                      </p>
+                    </>
+                  )}
+                  {appState === "recording" && (
+                    <>
+                      <h2 className="text-2xl font-semibold text-white sm:text-3xl">
+                        {noteMode >= 0 ? "กำลังฟังรายละเอียดเพิ่มเติม" : "กำลังฟังคำสั่งอาหาร"}
+                      </h2>
+                      <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-rose-400/12 px-3 py-1 text-sm text-rose-100">
+                        <Clock3 className="h-4 w-4" />
+                        {formatTime(recordingTime)}
+                      </div>
+                    </>
+                  )}
+                  {appState === "processing" && (
+                    <>
+                      <h2 className="text-2xl font-semibold text-white sm:text-3xl">กำลังประมวลผลคำสั่ง</h2>
+                      <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                        ระบบกำลังเทียบ transcript กับเมนูและตัวเลือกเพิ่มเติม
+                      </p>
+                    </>
+                  )}
+                  {appState === "error" && (
+                    <>
+                      <h2 className="text-2xl font-semibold text-white sm:text-3xl">ระบบยังไม่เข้าใจคำสั่งนี้</h2>
+                      <p className="mt-2 rounded-2xl border border-rose-400/16 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
+                        {errorMessage}
+                      </p>
+                    </>
+                  )}
+                  {appState === "confirmed" && (
+                    <>
+                      <h2 className="text-2xl font-semibold text-white sm:text-3xl">บันทึกออเดอร์สำเร็จ</h2>
+                      <p className="mt-2 text-sm leading-6 text-emerald-100">
+                        {confirmationMessage}
+                      </p>
+                    </>
+                  )}
+                </div>
+
+                <div className="panel-surface-soft flex flex-1 flex-col items-center justify-center rounded-[2rem] px-6 py-8 text-center">
+                  <button
+                    onClick={() => {
+                      if (appState === "idle" || appState === "error") toggleRecording();
+                      else if (appState === "recording") toggleRecording();
+                    }}
+                    disabled={appState === "processing" || appState === "confirmed"}
+                    className={`
+                      group relative flex h-56 w-56 items-center justify-center rounded-full transition-all duration-500 sm:h-72 sm:w-72
+                      ${appState === "idle" || appState === "review" || appState === "error"
+                        ? "border border-[rgba(243,162,79,0.22)] bg-gradient-to-br from-amber-200/10 via-orange-400/8 to-rose-500/10 hover:-translate-y-1 ring-accent"
+                        : ""}
+                      ${appState === "recording"
+                        ? noteMode >= 0
+                          ? "border border-orange-300/30 bg-orange-400/12 scale-105 shadow-[0_0_0_1px_rgba(243,162,79,0.26),0_0_60px_rgba(243,162,79,0.18)]"
+                          : "border border-rose-300/30 bg-rose-400/12 scale-105 shadow-[0_0_0_1px_rgba(247,127,104,0.26),0_0_60px_rgba(247,127,104,0.18)]"
+                        : ""}
+                      ${appState === "processing" ? "cursor-not-allowed border border-sky-300/20 bg-sky-300/10 opacity-80" : ""}
+                      ${appState === "confirmed" ? "border border-emerald-300/20 bg-emerald-300/12" : ""}
+                    `}
+                  >
+                    <div className="absolute inset-5 rounded-full border border-white/8" />
+                    <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_58%)]" />
+
+                    <div className="relative z-10 flex flex-col items-center gap-3">
+                      {(appState === "idle" || appState === "review" || appState === "error") && (
+                        <>
+                          <Mic className={`h-16 w-16 sm:h-24 sm:w-24 ${noteMode >= 0 ? "text-[var(--accent)]" : "text-white"}`} />
+                          <div>
+                            <p className="text-2xl font-semibold text-white sm:text-3xl">
+                              {noteMode >= 0 ? "พูดรายละเอียด" : cart.length > 0 ? "สั่งเพิ่ม" : "เริ่มสั่ง"}
+                            </p>
+                            <p className="mt-1 text-sm text-[var(--muted)]">
+                              แตะอีกครั้งเพื่อหยุดฟัง
+                            </p>
+                          </div>
+                        </>
+                      )}
+                      {appState === "recording" && (
+                        <>
+                          <Mic className={`h-16 w-16 sm:h-24 sm:w-24 ${noteMode >= 0 ? "text-[var(--accent)]" : "text-rose-200"}`} />
+                          <div className="inline-flex items-center gap-2 rounded-full bg-black/20 px-4 py-2 text-sm text-white/90">
+                            <Clock3 className="h-4 w-4" />
+                            {formatTime(recordingTime)}
+                          </div>
+                        </>
+                      )}
+                      {appState === "processing" && (
+                        <>
+                          <LoaderCircle className="h-16 w-16 animate-spin text-sky-100 sm:h-24 sm:w-24" />
+                          <p className="text-lg font-semibold text-white sm:text-2xl">กำลังประมวลผล</p>
+                        </>
+                      )}
+                      {appState === "confirmed" && (
+                        <>
+                          <CircleCheckBig className="h-16 w-16 text-emerald-100 sm:h-24 sm:w-24" />
+                          <p className="text-lg font-semibold text-white sm:text-2xl">ออเดอร์ถูกบันทึกแล้ว</p>
+                        </>
+                      )}
+                    </div>
+                  </button>
+
+                  {appState === "recording" && (
+                    <div className="mt-8 flex h-16 items-end justify-center gap-2">
+                      {[36, 68, 52, 84, 46, 76].map((height, index) => (
+                        <div
+                          key={height}
+                          className={`w-2 rounded-full ${noteMode >= 0 ? "bg-[var(--accent)]" : "bg-rose-300"} animate-pulse`}
+                          style={{
+                            height: `${height}%`,
+                            animationDuration: `${0.7 + index * 0.1}s`,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <div className="panel-surface-soft rounded-[1.75rem] p-5">
+                  <div className="mb-3 flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/6 text-[var(--accent)]">
+                      <Mic className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white">Transcript สด</p>
+                      <p className="text-xs text-[var(--muted)]">ข้อความที่ระบบได้ยินจากรอบล่าสุด</p>
+                    </div>
+                  </div>
+                  {liveTranscript ? (
+                    <div className="custom-scrollbar max-h-36 overflow-y-auto rounded-[1.25rem] border border-white/8 bg-black/10 px-4 py-3">
+                      <p className="text-base leading-7 text-white sm:text-lg">"{liveTranscript}"</p>
+                    </div>
+                  ) : (
+                    <div className="rounded-[1.25rem] border border-dashed border-white/8 px-4 py-6 text-sm text-[var(--muted)]">
+                      เมื่อเริ่มพูด ระบบจะแสดง transcript ในพื้นที่นี้ทันที
+                    </div>
+                  )}
+
+                  {appState === "error" && suggestions.length > 0 && (
+                    <div className="mt-4">
+                      <p className="mb-2 text-sm text-[var(--muted)]">ลองเลือกตัวเลือกที่ใกล้เคียง</p>
+                      <div className="flex flex-wrap gap-2">
+                        {suggestions.map((suggestion, index) => (
+                          <button
+                            key={index}
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            className="rounded-full border border-[rgba(243,162,79,0.22)] bg-[rgba(243,162,79,0.08)] px-3 py-2 text-sm text-[var(--accent)] transition-colors hover:bg-[rgba(243,162,79,0.16)]"
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {appState === "error" && (
+                    <button
+                      onClick={() => {
+                        setErrorMessage("");
+                        setAppState("idle");
+                      }}
+                      className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/5 px-4 py-2 text-sm text-white transition-colors hover:bg-white/10"
+                    >
+                      <CircleAlert className="h-4 w-4 text-[var(--accent)]" />
+                      ลองใหม่
+                    </button>
+                  )}
+                </div>
+
+                {pendingNoteItem && (
+                  <div className="panel-surface-soft rounded-[1.75rem] p-5">
+                    <div className="mb-2 flex items-center gap-3">
+                      <FilePenLine className="h-5 w-5 text-[var(--accent)]" />
+                      <p className="font-semibold text-white">กำลังเพิ่มรายละเอียด</p>
+                    </div>
+                    <p className="text-sm leading-6 text-[var(--muted)]">
+                      รายการที่เลือก: <span className="font-semibold text-white">{pendingNoteItem.menu_name}</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className="panel-surface flex min-h-[calc(100vh-2.5rem)] flex-col rounded-[2rem]">
+            <div className="border-b border-white/8 px-5 py-5 sm:px-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="mb-3 flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/6 text-[var(--accent)]">
+                      <ClipboardList className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="section-kicker mb-1">Order Board</p>
+                      <h2 className="text-2xl font-bold text-white">รายการอาหาร</h2>
+                    </div>
+                  </div>
+                  <p className="text-sm text-[var(--muted)]">ปรับจำนวน เพิ่ม add-on และใส่รายละเอียดก่อนยืนยัน</p>
+                </div>
+
+                <div className="rounded-full border border-[rgba(243,162,79,0.22)] bg-[rgba(243,162,79,0.08)] px-4 py-2 text-sm font-semibold text-[var(--accent)]">
+                  {cart.length} รายการ
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-4 md:gap-5">
-              <button
-                onClick={() => { setCart([]); resetToIdle(); }}
-                className="col-span-1 h-14 md:h-16 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-gray-400 font-bold border border-slate-700/50 active:scale-95 transition-all text-base md:text-lg hover:border-gray-600"
-              >
-                ล้าง
-              </button>
-              <button
-                onClick={confirmOrder}
-                disabled={appState === "processing"}
-                className="col-span-3 h-14 md:h-16 rounded-2xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white text-xl md:text-2xl font-bold shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transform active:scale-95 transition-all"
-              >
-                ยืนยันรายการ
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
+            <div className="custom-scrollbar flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+              {cart.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center rounded-[1.8rem] border border-dashed border-white/10 px-6 py-16 text-center">
+                  <ClipboardList className="mb-5 h-16 w-16 text-[var(--muted)]" />
+                  <h3 className="text-2xl font-bold text-white">ยังไม่มีรายการในตะกร้า</h3>
+                  <p className="mt-3 max-w-sm text-sm leading-6 text-[var(--muted)]">
+                    เริ่มจากกดปุ่มไมโครโฟนเพื่อสั่งอาหาร หรือเพิ่มรายการเองแบบ manual
+                  </p>
+                  <button
+                    onClick={openManualModal}
+                    className="mt-6 inline-flex items-center gap-2 rounded-2xl border border-white/8 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                  >
+                    <Plus className="h-4 w-4 text-[var(--accent)]" />
+                    เพิ่มรายการเอง
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {cart.map((item, index) => {
+                    const dineOptionConfig = item.dineOption ? DINE_OPTION_UI[item.dineOption] : null;
+                    const DineOptionIcon = dineOptionConfig?.icon;
+                    return (
+                      <div
+                        key={index}
+                        id={`cart-item-${index}`}
+                        className={`panel-surface-soft animate-slide-in overflow-hidden rounded-[1.75rem] ${expandedIndex === index ? "ring-accent" : ""}`}
+                      >
+                        <div
+                          onClick={() => setExpandedIndex(expandedIndex === index ? -1 : index)}
+                          className="accordion-header flex cursor-pointer items-center justify-between gap-4 px-4 py-4 sm:px-5"
+                        >
+                          <div className="flex min-w-0 flex-1 items-center gap-4">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/6 text-sm font-bold text-white">
+                              {index + 1}
+                            </div>
+                            <div className="min-w-0">
+                              <h3 className="truncate text-lg font-semibold text-white sm:text-xl">{item.menu_name}</h3>
+                              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                                <span className="font-semibold text-[var(--accent)]">{item.price}฿</span>
+                                <span className="text-[var(--muted)]">× {item.quantity}</span>
+                                {dineOptionConfig && (
+                                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${dineOptionConfig.className}`}>
+                                    {DineOptionIcon && <DineOptionIcon className="h-3.5 w-3.5" />}
+                                    {dineOptionConfig.label}
+                                  </span>
+                                )}
+                                {item.note && (
+                                  <span className="inline-flex max-w-[16rem] items-center gap-1 truncate rounded-full bg-white/5 px-2.5 py-1 text-xs text-white/80">
+                                    <FilePenLine className="h-3.5 w-3.5 text-[var(--accent)]" />
+                                    {item.note}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
 
-      {/* Note Mode Overlay - Just blur cart area */}
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <p className="text-2xl font-bold text-white">{(item.price || 0) * item.quantity}</p>
+                              <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted)]">THB</p>
+                            </div>
+                            <ChevronDown className={`accordion-chevron h-5 w-5 text-[var(--muted)] ${expandedIndex === index ? "expanded" : ""}`} />
+                          </div>
+                        </div>
+
+                        <div className={`accordion-content px-4 sm:px-5 ${expandedIndex === index ? "expanded pb-5" : "collapsed"}`}>
+                          <div className="border-t border-white/6 pt-4">
+                            <div className="flex flex-wrap items-end justify-between gap-4">
+                              <div className="flex flex-1 flex-wrap gap-2">
+                                {item.add_ons.map((addon, addonIndex) => {
+                                  const AddonIcon = ADDON_ICON_MAP[addon.name] ?? Sparkles;
+                                  return (
+                                    <button
+                                      key={addonIndex}
+                                      onClick={() => {
+                                        const newAddOns = [...item.add_ons];
+                                        newAddOns[addonIndex] = { ...addon, selected: !addon.selected };
+                                        const basePrice = (item.price || 0) - item.add_ons.filter(a => a.selected).reduce((sum, activeAddon) => sum + activeAddon.price, 0);
+                                        const newPrice = basePrice + newAddOns.filter(a => a.selected).reduce((sum, activeAddon) => sum + activeAddon.price, 0);
+                                        updateCartItem(index, { ...item, add_ons: newAddOns, price: newPrice });
+                                      }}
+                                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition-colors ${addon.selected
+                                        ? "border-emerald-400/18 bg-emerald-400/10 text-emerald-100"
+                                        : "border-white/8 bg-white/5 text-[var(--muted)] hover:bg-white/10 hover:text-white"
+                                        }`}
+                                    >
+                                      <AddonIcon className="h-4 w-4" />
+                                      {addon.name}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              <div className="flex items-center gap-2 rounded-full border border-white/8 bg-white/5 p-1.5">
+                                <button
+                                  onClick={() => {
+                                    if (item.quantity > 1) updateCartItem(index, { ...item, quantity: item.quantity - 1 });
+                                    else deleteFromCart(index);
+                                  }}
+                                  className="flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+                                >
+                                  <Minus className="h-4 w-4" />
+                                </button>
+                                <span className="w-10 text-center text-lg font-semibold text-white">{item.quantity}</span>
+                                <button
+                                  onClick={() => updateCartItem(index, { ...item, quantity: item.quantity + 1 })}
+                                  className="flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 border-t border-white/6 pt-4">
+                              {item.note ? (
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                  <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(243,162,79,0.2)] bg-[rgba(243,162,79,0.08)] px-3 py-2 text-sm text-[var(--accent)]">
+                                    <FilePenLine className="h-4 w-4" />
+                                    {item.note}
+                                  </div>
+                                  <button
+                                    onClick={() => { setNoteMode(index); }}
+                                    className="inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/5 px-4 py-2 text-sm text-white transition-colors hover:bg-white/10"
+                                  >
+                                    <FilePenLine className="h-4 w-4 text-[var(--accent)]" />
+                                    แก้ไขรายละเอียด
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setNoteMode(index);
+                                    setTimeout(() => startRecording(), 50);
+                                  }}
+                                  className="flex w-full items-center justify-center gap-3 rounded-[1.3rem] border border-dashed border-white/10 bg-white/4 px-4 py-4 text-left text-sm text-[var(--muted)] transition-colors hover:bg-white/8 hover:text-white sm:text-base"
+                                >
+                                  <Mic className="h-5 w-5 text-[var(--accent)]" />
+                                  <span>
+                                    <span className="font-semibold text-white">เพิ่มรายละเอียด</span>
+                                    <span className="ml-2 text-[var(--muted)]">เช่น ไม่เผ็ด ใส่กล่อง หรือเลือกเส้น</span>
+                                  </span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  <button
+                    onClick={openManualModal}
+                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-[1.5rem] border border-dashed border-white/10 bg-white/4 px-4 py-4 text-sm font-semibold text-white transition-colors hover:bg-white/8"
+                  >
+                    <Plus className="h-4 w-4 text-[var(--accent)]" />
+                    เพิ่มรายการอาหาร
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {cart.length > 0 && (
+              <div className="glass glow-border-top border-t border-white/8 px-5 py-5 sm:px-6">
+                <div className="mb-5 flex items-end justify-between">
+                  <div>
+                    <p className="section-kicker mb-2">Order Summary</p>
+                    <p className="text-sm text-[var(--muted)]">ตรวจรายการก่อนส่งเข้าครัว</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted)]">รวมทั้งหมด</p>
+                    <p className="gradient-text-orange text-4xl font-bold">{getCartTotal()}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-3">
+                  <button
+                    onClick={() => { setCart([]); resetToIdle(); }}
+                    className="col-span-1 inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-white/8 bg-white/5 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                  >
+                    <Trash2 className="h-4 w-4 text-[var(--accent)]" />
+                    ล้าง
+                  </button>
+                  <button
+                    onClick={confirmOrder}
+                    disabled={appState === "processing"}
+                    className="col-span-3 inline-flex h-14 items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-[var(--accent)] via-orange-400 to-[var(--accent-strong)] text-lg font-bold text-stone-950 transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <CircleCheckBig className="h-5 w-5" />
+                    ยืนยันรายการ
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      </main>
+
       {noteMode >= 0 && (
         <div
-          className="fixed right-0 top-0 bottom-0 w-full landscape:w-1/2 z-40 bg-black/60 backdrop-blur-md animate-fade-in cursor-pointer"
+          className="fixed right-0 top-0 bottom-0 z-40 w-full bg-black/60 backdrop-blur-md xl:w-[43%]"
           onClick={() => setNoteMode(-1)}
         />
       )}
 
-      {/* Manual Order Modal */}
       {showManualModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in p-4">
-          <div className="bg-[#1e293b] rounded-3xl w-full max-w-2xl h-[80vh] flex flex-col shadow-2xl border border-gray-700 animate-scale-in overflow-hidden">
-            {/* Modal Header */}
-            <div className="p-6 border-b border-gray-700 flex justify-between items-center bg-[#0f172a]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+          <div className="panel-surface flex h-[84vh] w-full max-w-3xl animate-scale-in flex-col overflow-hidden rounded-[2rem]">
+            <div className="flex items-start justify-between gap-4 border-b border-white/8 px-6 py-5">
               <div>
+                <p className="section-kicker mb-3">Manual Add</p>
                 <h3 className="text-2xl font-bold text-white">
-                  {selectedManualItem ? "ปรับแต่งรายการ" : "เลือกเมนูอาหาร"}
+                  {selectedManualItem ? "ปรับแต่งรายการอาหาร" : "เลือกเมนูอาหาร"}
                 </h3>
-                {selectedManualItem && <button onClick={() => setSelectedManualItem(null)} className="text-sm text-gray-400 hover:text-white flex items-center gap-1 mt-1">← ย้อนกลับไปเลือกเมนู</button>}
+                {selectedManualItem && (
+                  <button
+                    onClick={() => setSelectedManualItem(null)}
+                    className="mt-2 inline-flex items-center gap-2 text-sm text-[var(--muted)] transition-colors hover:text-white"
+                  >
+                    <ChevronDown className="h-4 w-4 rotate-90" />
+                    ย้อนกลับไปเลือกเมนู
+                  </button>
+                )}
               </div>
-              <button onClick={() => setShowManualModal(false)} className="text-gray-400 hover:text-white bg-slate-800 p-2 rounded-full">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              <button
+                onClick={() => setShowManualModal(false)}
+                className="rounded-2xl border border-white/8 bg-white/5 p-2 text-[var(--muted)] transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-[#1e293b]">
+            <div className="custom-scrollbar flex-1 overflow-y-auto px-6 py-6">
               {!selectedManualItem ? (
-                /* Step 1: Menu Selection */
                 <div className="space-y-6">
-                  {/* Search */}
                   <div className="relative">
+                    <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--muted)]" />
                     <input
                       type="text"
                       placeholder="ค้นหาเมนู..."
                       value={manualSearch}
                       onChange={(e) => setManualSearch(e.target.value)}
-                      className="w-full bg-slate-900 border border-gray-700 rounded-xl py-4 pl-12 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 transition-all text-lg"
+                      className="w-full rounded-[1.4rem] border border-white/8 bg-white/5 py-4 pl-12 pr-4 text-lg text-white placeholder:text-white/30 focus:border-[var(--accent)] focus:outline-none"
                       autoFocus
                     />
-                    <svg className="w-6 h-6 text-gray-500 absolute left-4 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                   </div>
 
-                  {/* Categories */}
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {menuItems
-                      .filter(item => item.name.includes(manualSearch))
-                      .map((item) => (
-                        <button
-                          key={item.id}
-                          onClick={() => setSelectedManualItem(item)}
-                          className="bg-slate-800 hover:bg-slate-700 p-4 rounded-xl border border-gray-700 hover:border-orange-500/50 transition-all text-left group"
-                        >
-                          <div className="font-bold text-lg text-white group-hover:text-orange-400 mb-1">{item.name}</div>
-                          <div className="text-gray-400 text-sm">{item.base_price} บาท</div>
-                        </button>
-                      ))}
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {filteredManualItems.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => setSelectedManualItem(item)}
+                        className="panel-surface-soft rounded-[1.4rem] p-4 text-left transition-transform hover:-translate-y-0.5"
+                      >
+                        <p className="mb-2 text-lg font-semibold text-white">{item.name}</p>
+                        <p className="text-sm text-[var(--muted)]">{item.base_price} บาท</p>
+                      </button>
+                    ))}
                   </div>
-                  {menuItems.filter(item => item.name.includes(manualSearch)).length === 0 && (
-                    <div className="text-center text-gray-500 py-10">ไม่พบเมนูที่ค้นหา</div>
+
+                  {filteredManualItems.length === 0 && (
+                    <div className="rounded-[1.4rem] border border-dashed border-white/10 px-4 py-10 text-center text-[var(--muted)]">
+                      ไม่พบเมนูที่ค้นหา
+                    </div>
                   )}
                 </div>
               ) : (
-                /* Step 2: Customization */
                 <div className="space-y-8">
-                  {/* Item Info */}
-                  <div className="flex justify-between items-start">
-                    <h2 className="text-3xl font-bold text-white leading-tight">{selectedManualItem.name}</h2>
-                    <span className="text-2xl font-bold text-orange-400">{selectedManualItem.base_price}฿</span>
-                  </div>
-
-                  {/* Add-ons */}
-                  <div>
-                    <h4 className="text-gray-400 font-bold mb-3 uppercase text-sm tracking-wider">ตัวเลือกเพิ่มเติม</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      {addonOptions.map((opt) => (
-                        <button
-                          key={opt.name}
-                          onClick={() => {
-                            setManualAddons(prev =>
-                              prev.includes(opt.name) ? prev.filter(n => n !== opt.name) : [...prev, opt.name]
-                            );
-                          }}
-                          className={`p-3 rounded-xl border-2 flex items-center justify-between transition-all ${manualAddons.includes(opt.name)
-                            ? "bg-green-500/20 border-green-500 text-green-400"
-                            : "bg-slate-800 border-slate-700 text-gray-400 hover:border-gray-500"
-                            }`}
-                        >
-                          <span className="font-bold flex items-center gap-2">
-                            <span>{opt.emoji}</span> {opt.name}
-                          </span>
-                          <span className="text-sm">+{opt.price}</span>
-                        </button>
-                      ))}
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="section-kicker mb-3">Selected Menu</p>
+                      <h2 className="text-3xl font-bold text-white">{selectedManualItem.name}</h2>
+                    </div>
+                    <div className="rounded-[1.4rem] border border-[rgba(243,162,79,0.22)] bg-[rgba(243,162,79,0.08)] px-5 py-4 text-right">
+                      <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted)]">ราคาเริ่มต้น</p>
+                      <p className="text-2xl font-bold text-[var(--accent)]">{selectedManualItem.base_price}฿</p>
                     </div>
                   </div>
 
-                  {/* Quantity */}
                   <div>
-                    <h4 className="text-gray-400 font-bold mb-3 uppercase text-sm tracking-wider">จำนวน</h4>
-                    <div className="flex items-center gap-4">
-                      <button onClick={() => manualQuantity > 1 && setManualQuantity(q => q - 1)} className="w-14 h-14 bg-slate-800 rounded-xl text-2xl font-bold hover:bg-slate-700">-</button>
-                      <span className="text-3xl font-bold text-white w-12 text-center">{manualQuantity}</span>
-                      <button onClick={() => setManualQuantity(q => q + 1)} className="w-14 h-14 bg-slate-800 rounded-xl text-2xl font-bold hover:bg-slate-700">+</button>
+                    <h4 className="mb-3 text-sm font-bold uppercase tracking-[0.18em] text-[var(--muted)]">ตัวเลือกเพิ่มเติม</h4>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {addonOptions.map((option) => {
+                        const AddonIcon = ADDON_ICON_MAP[option.name] ?? Sparkles;
+                        const isSelected = manualAddons.includes(option.name);
+                        return (
+                          <button
+                            key={option.name}
+                            onClick={() => {
+                              setManualAddons((current) =>
+                                current.includes(option.name)
+                                  ? current.filter(name => name !== option.name)
+                                  : [...current, option.name]
+                              );
+                            }}
+                            className={`flex items-center justify-between rounded-[1.25rem] border px-4 py-4 transition-colors ${isSelected
+                              ? "border-emerald-400/18 bg-emerald-400/10 text-emerald-100"
+                              : "border-white/8 bg-white/5 text-white hover:bg-white/8"
+                              }`}
+                          >
+                            <span className="flex items-center gap-3 font-semibold">
+                              <AddonIcon className="h-5 w-5" />
+                              {option.name}
+                            </span>
+                            <span className="text-sm">+{option.price}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="mb-3 text-sm font-bold uppercase tracking-[0.18em] text-[var(--muted)]">จำนวน</h4>
+                    <div className="inline-flex items-center gap-3 rounded-full border border-white/8 bg-white/5 p-2">
+                      <button
+                        onClick={() => manualQuantity > 1 && setManualQuantity((value) => value - 1)}
+                        className="flex h-12 w-12 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+                      <span className="w-12 text-center text-3xl font-bold text-white">{manualQuantity}</span>
+                      <button
+                        onClick={() => setManualQuantity((value) => value + 1)}
+                        className="flex h-12 w-12 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Modal Footer (Only for Step 2) */}
             {selectedManualItem && (
-              <div className="p-6 border-t border-gray-700 bg-[#0f172a] flex justify-between items-center">
-                <div className="text-left">
-                  <div className="text-sm text-gray-400">ราคารวม</div>
-                  <div className="text-3xl font-bold text-orange-400">
-                    {(selectedManualItem.base_price + addonOptions.filter(o => manualAddons.includes(o.name)).reduce((s, a) => s + a.price, 0)) * manualQuantity}฿
-                  </div>
+              <div className="flex items-center justify-between gap-4 border-t border-white/8 px-6 py-5">
+                <div>
+                  <p className="text-sm text-[var(--muted)]">ราคารวม</p>
+                  <p className="text-3xl font-bold text-[var(--accent)]">{selectedManualTotal}฿</p>
                 </div>
                 <button
                   onClick={handleManualAdd}
-                  className="px-8 py-4 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl font-bold text-xl shadow-lg shadow-orange-500/20 active:scale-95 transition-all"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[var(--accent)] to-[var(--accent-strong)] px-6 py-4 text-lg font-bold text-stone-950 transition-transform hover:-translate-y-0.5"
                 >
+                  <Plus className="h-5 w-5" />
                   เพิ่มรายการ
                 </button>
               </div>
@@ -1152,42 +1415,47 @@ export default function VoiceOrderPage() {
         </div>
       )}
 
-      {/* Order Type Selection Modal */}
       {showOrderTypeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in p-4">
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-6 md:p-8 w-full max-w-lg shadow-2xl border border-slate-700/50 animate-scale-in transform transition-all">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+          <div className="panel-surface w-full max-w-xl animate-scale-in rounded-[2rem] p-6 sm:p-8">
             <div className="text-center">
-              <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">ทานที่ร้าน หรือ กลับบ้าน?</h3>
-              <p className="text-gray-400 mb-8">กรุณาเลือกรูปแบบการรับอาหาร</p>
+              <p className="section-kicker mb-3">Serving Type</p>
+              <h3 className="display-font text-3xl text-white sm:text-4xl">เลือกรูปแบบการรับอาหาร</h3>
+              <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[var(--muted)]">
+                ค่านี้จะถูกแนบไปกับทุกรายการในออเดอร์เพื่อให้ครัวและบิลแสดงผลเหมือนเดิม
+              </p>
 
-              <div className="grid grid-cols-2 gap-4 md:gap-6">
+              <div className="mt-8 grid gap-4 sm:grid-cols-2">
                 <button
                   onClick={() => submitOrder("dine-in")}
-                  className="group relative h-40 rounded-2xl bg-gradient-to-br from-blue-600/20 to-blue-800/20 hover:from-blue-600/40 hover:to-blue-800/40 border-2 border-blue-500/30 hover:border-blue-400 transition-all active:scale-[0.98] flex flex-col items-center justify-center gap-3"
+                  className="group rounded-[1.75rem] border border-sky-300/20 bg-sky-300/8 px-5 py-8 text-left transition-transform hover:-translate-y-1"
                 >
-                  <span className="text-5xl md:text-6xl filter drop-shadow-lg group-hover:scale-110 transition-transform duration-300">🍽️</span>
-                  <span className="text-xl md:text-2xl font-bold text-blue-300 group-hover:text-white">ทานที่ร้าน</span>
+                  <UtensilsCrossed className="h-8 w-8 text-sky-200 transition-transform group-hover:scale-110" />
+                  <p className="mt-6 text-2xl font-bold text-white">ทานที่ร้าน</p>
+                  <p className="mt-2 text-sm leading-6 text-sky-50/70">ส่งเข้าครัวแบบเสิร์ฟที่โต๊ะหรือรับจากหน้าร้าน</p>
                 </button>
 
                 <button
                   onClick={() => submitOrder("takeaway")}
-                  className="group relative h-40 rounded-2xl bg-gradient-to-br from-orange-600/20 to-orange-800/20 hover:from-orange-600/40 hover:to-orange-800/40 border-2 border-orange-500/30 hover:border-orange-400 transition-all active:scale-[0.98] flex flex-col items-center justify-center gap-3"
+                  className="group rounded-[1.75rem] border border-[rgba(243,162,79,0.22)] bg-[rgba(243,162,79,0.08)] px-5 py-8 text-left transition-transform hover:-translate-y-1"
                 >
-                  <span className="text-5xl md:text-6xl filter drop-shadow-lg group-hover:scale-110 transition-transform duration-300">🥡</span>
-                  <span className="text-xl md:text-2xl font-bold text-orange-300 group-hover:text-white">กลับบ้าน</span>
+                  <Package className="h-8 w-8 text-[var(--accent)] transition-transform group-hover:scale-110" />
+                  <p className="mt-6 text-2xl font-bold text-white">กลับบ้าน</p>
+                  <p className="mt-2 text-sm leading-6 text-[var(--muted)]">ระบบจะผูก note สำหรับแพ็กใส่กล่องเหมือน flow เดิม</p>
                 </button>
               </div>
 
               <button
                 onClick={() => setShowOrderTypeModal(false)}
-                className="mt-8 text-gray-500 hover:text-white underline decoration-gray-600 hover:decoration-white transition-colors text-sm"
+                className="mt-8 inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/5 px-4 py-2 text-sm text-white transition-colors hover:bg-white/10"
               >
+                <X className="h-4 w-4 text-[var(--accent)]" />
                 ยกเลิก
               </button>
             </div>
           </div>
         </div>
       )}
-    </main>
+    </>
   );
 }

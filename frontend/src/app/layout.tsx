@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Sarabun } from "next/font/google";
+import { Chonburi, Sarabun } from "next/font/google";
 import "./globals.css";
 
 const sarabun = Sarabun({
@@ -8,9 +8,15 @@ const sarabun = Sarabun({
   variable: "--font-sarabun",
 });
 
+const chonburi = Chonburi({
+  weight: "400",
+  subsets: ["thai", "latin"],
+  variable: "--font-chonburi",
+});
+
 export const metadata: Metadata = {
-  title: "ร้านข้าวแกง | สั่งอาหารด้วยเสียง",
-  description: "ระบบสั่งอาหารด้วยเสียงสำหรับร้านข้าวแกง - Voice-Controlled Ordering System",
+  title: "EatEasy Order",
+  description: "ระบบสั่งอาหารด้วยเสียงสำหรับร้านอาหารตามสั่ง",
 };
 
 export default function RootLayout({
@@ -20,7 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="th">
-      <body className={`${sarabun.variable} font-sans antialiased`}>
+      <body className={`${sarabun.variable} ${chonburi.variable} font-sans antialiased`}>
         {children}
       </body>
     </html>

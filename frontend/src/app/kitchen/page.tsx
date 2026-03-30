@@ -2,6 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import {
+    Check,
+    ChefHat,
+    Clock3,
+    LogOut,
+    Package,
+    Printer,
+    RefreshCcw,
+    UtensilsCrossed,
+    X,
+} from "lucide-react";
 import { API_URL } from "../../config";
 import { checkAuth, getAuthHeaders, logout } from "../../auth";
 
@@ -169,9 +180,12 @@ export default function KitchenPage() {
     // Show loading while checking auth
     if (authLoading) {
         return (
-            <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
-                <div className="text-orange-500 text-xl animate-pulse">กำลังตรวจสอบสิทธิ์...</div>
-            </div>
+            <main className="page-frame flex min-h-screen items-center justify-center px-4 py-8">
+                <div className="panel-surface flex w-full max-w-md items-center justify-center gap-3 rounded-[2rem] px-6 py-8 text-[var(--muted)]">
+                    <RefreshCcw className="h-5 w-5 animate-spin text-[var(--accent)]" />
+                    กำลังตรวจสอบสิทธิ์...
+                </div>
+            </main>
         );
     }
 
@@ -180,144 +194,177 @@ export default function KitchenPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[#0f172a] text-white p-8">
-            <div className="w-full max-w-[1800px] mx-auto">
-                <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
-                    <div>
-                        <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500 mb-2">
-                            👨‍🍳 ครัว Kitchen Display
-                        </h1>
-                        <p className="text-gray-400 text-sm flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                            อัปเดตอัตโนมัติทุก 5 วินาที
+        <div className="page-frame min-h-screen px-4 py-5 sm:px-6 lg:px-8">
+            <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-5">
+                <header className="panel-surface rounded-[2rem] px-6 py-6 sm:px-8">
+                    <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                        <div className="space-y-4">
+                            <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-[var(--muted)]">
+                                <ChefHat className="h-4 w-4 text-[var(--accent)]" />
+                                ครัวออนไลน์ของร้าน
+                            </div>
+                            <div>
+                                <p className="section-kicker mb-3">Kitchen Display</p>
+                                <h1 className="display-font text-3xl text-white sm:text-4xl">
+                                    หน้าครัวสำหรับคิวสดและการจัดการออเดอร์
+                                </h1>
+                                <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)] sm:text-base">
+                                    ระบบยังคงดึงข้อมูลจาก endpoint เดิมและอัปเดตทุก 5 วินาที แต่จัดวางใหม่ให้เห็นคิวอาหารและสถานะชัดขึ้นเวลาทำงานจริง
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3">
+                            <div className="inline-flex items-center gap-2 rounded-2xl border border-emerald-400/18 bg-emerald-400/10 px-4 py-3 text-sm font-medium text-emerald-100">
+                                <RefreshCcw className="h-4 w-4 animate-spin" />
+                                อัปเดตอัตโนมัติทุก 5 วินาที
+                            </div>
+                            <button
+                                onClick={logout}
+                                className="inline-flex items-center gap-2 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                            >
+                                <LogOut className="h-4 w-4" />
+                                ออกจากระบบ
+                            </button>
+                        </div>
+                    </div>
+                </header>
+
+                <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="panel-surface-soft rounded-[1.6rem] p-5">
+                        <p className="mb-2 text-sm text-[var(--muted)]">ออเดอร์รอทำ</p>
+                        <p className="text-3xl font-bold text-white">{orders.length}</p>
+                    </div>
+                    <div className="panel-surface-soft rounded-[1.6rem] p-5">
+                        <p className="mb-2 text-sm text-[var(--muted)]">กลับบ้าน</p>
+                        <p className="text-3xl font-bold text-[var(--accent)]">
+                            {orders.filter((order) => order.items.some((item) => item.note && item.note.includes("ใส่กล่องกลับบ้าน"))).length}
                         </p>
                     </div>
-                    <button
-                        onClick={logout}
-                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-all flex items-center gap-2"
-                    >
-                        <span>🚪</span> ออกจากระบบ
-                    </button>
+                    <div className="panel-surface-soft rounded-[1.6rem] p-5">
+                        <p className="mb-2 text-sm text-[var(--muted)]">ทานที่ร้าน</p>
+                        <p className="text-3xl font-bold text-[var(--info)]">
+                            {orders.filter((order) => !order.items.some((item) => item.note && item.note.includes("ใส่กล่องกลับบ้าน"))).length}
+                        </p>
+                    </div>
                 </div>
 
-                {loading && orders.length === 0 ? (
-                    <div className="text-center text-gray-500 mt-20 text-2xl animate-pulse">กำลังโหลดข้อมูล...</div>
-                ) : orders.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center mt-20 text-gray-500 opacity-50 border-4 border-dashed border-gray-800 rounded-3xl p-20">
-                        <svg className="w-32 h-32 mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                        </svg>
-                        <span className="text-3xl font-bold">รอออเดอร์แรก...</span>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {orders.map((order) => {
-                            // Check if it's Takeaway (if any item has the note)
-                            const isTakeaway = order.items.some(item => item.note && item.note.includes("ใส่กล่องกลับบ้าน"));
+                <section className="panel-surface rounded-[2rem] p-4 sm:p-6">
+                    {loading && orders.length === 0 ? (
+                        <div className="flex items-center justify-center gap-3 py-20 text-[var(--muted)]">
+                            <RefreshCcw className="h-5 w-5 animate-spin text-[var(--accent)]" />
+                            กำลังโหลดข้อมูล...
+                        </div>
+                    ) : orders.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center rounded-[1.75rem] border border-dashed border-white/10 px-6 py-20 text-center">
+                            <ChefHat className="mb-5 h-16 w-16 text-[var(--muted)]" />
+                            <h2 className="text-2xl font-bold text-white">ตอนนี้ยังไม่มีคิวในครัว</h2>
+                            <p className="mt-3 max-w-md text-sm leading-6 text-[var(--muted)]">
+                                เมื่อมีออเดอร์ใหม่เข้าระบบ รายการจะเด้งขึ้นที่หน้านี้ทันทีโดยไม่ต้องรีเฟรชเอง
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                            {orders.map((order) => {
+                                const isTakeaway = order.items.some(item => item.note && item.note.includes("ใส่กล่องกลับบ้าน"));
+                                const TypeIcon = isTakeaway ? Package : UtensilsCrossed;
 
-                            return (
-                                <div
-                                    key={order.id}
-                                    className={`rounded-2xl p-0 border shadow-2xl overflow-hidden transition-all group ${isTakeaway ? "bg-[#1e293b] border-orange-500/50" : "bg-[#1e293b] border-gray-700/50"}`}
-                                >
-                                    {/* Order Header */}
-                                    <div className={`p-4 border-b flex justify-between items-start ${isTakeaway ? "bg-orange-900/20 border-orange-500/30" : "bg-[#0f172a]/50 border-gray-700/50"}`}>
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="bg-white/10 text-white px-3 py-1 rounded-lg text-lg font-bold">
-                                                    #{order.id}
-                                                </span>
-                                                {isTakeaway ? (
-                                                    <span className="bg-orange-500 text-white px-2 py-1 rounded-lg text-sm font-bold flex items-center gap-1">
-                                                        🥡 กลับบ้าน
-                                                    </span>
-                                                ) : (
-                                                    <span className="bg-blue-500 text-white px-2 py-1 rounded-lg text-sm font-bold flex items-center gap-1">
-                                                        🍽️ ทานที่ร้าน
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="text-gray-400 text-sm font-mono">
-                                                {formatTime(order.created_at)}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Items List */}
-                                    <div className="p-5 space-y-4">
-                                        {order.items.map((item, idx) => {
-                                            // Remove "ใส่กล่องกลับบ้าน" from note since it's shown globally
-                                            const cleanNote = item.note?.replace("ใส่กล่องกลับบ้าน", "").replace(/,\s*$/, "").replace(/^,\s*/, "").trim();
-
-                                            return (
-                                                <div key={idx} className="flex justify-between items-start pb-4 border-b border-gray-700/30 last:border-0 last:pb-0">
-                                                    <div className="flex items-start gap-4">
-                                                        <div className="bg-slate-700 w-8 h-8 flex items-center justify-center rounded text-white font-bold text-lg shrink-0">
-                                                            {item.quantity}
-                                                        </div>
-                                                        <div>
-                                                            <div className="text-xl font-bold text-gray-200 leading-tight">
-                                                                {item.menu_name}
-                                                            </div>
-                                                            {item.add_ons.length > 0 && (
-                                                                <div className="flex flex-wrap gap-2 mt-2">
-                                                                    {item.add_ons.map((addon, aIdx) => (
-                                                                        <span
-                                                                            key={aIdx}
-                                                                            className="text-sm bg-green-900/30 text-green-400 px-2 py-0.5 rounded border border-green-500/20"
-                                                                        >
-                                                                            + {addon.name}
-                                                                        </span>
-                                                                    ))}
-                                                                </div>
-                                                            )}
-                                                            {cleanNote && (
-                                                                <div className="text-red-400 text-sm mt-1 font-bold bg-red-900/20 px-2 py-0.5 rounded inline-block">
-                                                                    * {cleanNote}
-                                                                </div>
-                                                            )}
-                                                        </div>
+                                return (
+                                    <article
+                                        key={order.id}
+                                        className={`panel-surface-soft overflow-hidden rounded-[1.75rem] border transition-transform duration-200 hover:-translate-y-0.5 ${isTakeaway ? "border-[rgba(243,162,79,0.22)]" : "border-white/6"}`}
+                                    >
+                                        <div className={`border-b px-5 py-4 ${isTakeaway ? "border-[rgba(243,162,79,0.22)] bg-[rgba(243,162,79,0.08)]" : "border-white/6 bg-white/4"}`}>
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div>
+                                                    <div className="mb-2 flex items-center gap-2">
+                                                        <span className="rounded-full border border-white/8 bg-white/5 px-3 py-1 text-sm font-semibold text-white">
+                                                            ออเดอร์ #{order.id}
+                                                        </span>
+                                                        <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${isTakeaway ? "bg-[rgba(243,162,79,0.18)] text-[var(--accent)]" : "bg-sky-400/12 text-sky-200"}`}>
+                                                            <TypeIcon className="h-3.5 w-3.5" />
+                                                            {isTakeaway ? "กลับบ้าน" : "ทานที่ร้าน"}
+                                                        </span>
+                                                    </div>
+                                                    <div className="inline-flex items-center gap-2 text-sm text-[var(--muted)]">
+                                                        <Clock3 className="h-4 w-4" />
+                                                        {formatTime(order.created_at)}
                                                     </div>
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
-
-                                    {/* Footer Actions */}
-                                    <div className="p-5 bg-[#0f172a]/30 border-t border-gray-700/50">
-                                        <div className="flex justify-between items-end mb-4">
-                                            <span className="text-gray-500 text-sm">ยอดรวม</span>
-                                            <span className="text-3xl font-bold text-orange-400">{order.total_price}.-</span>
+                                                <div className="rounded-2xl border border-white/8 bg-white/5 px-4 py-2 text-right">
+                                                    <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted)]">รวม</p>
+                                                    <p className="text-2xl font-bold text-[var(--accent)]">{order.total_price}.-</p>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="grid grid-cols-3 gap-2">
+
+                                        <div className="space-y-4 p-5">
+                                            {order.items.map((item, idx) => {
+                                                const cleanNote = item.note?.replace("ใส่กล่องกลับบ้าน", "").replace(/,\s*$/, "").replace(/^,\s*/, "").trim();
+
+                                                return (
+                                                    <div key={idx} className="rounded-[1.25rem] border border-white/6 bg-black/10 p-4">
+                                                        <div className="flex items-start gap-4">
+                                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/8 text-base font-bold text-white">
+                                                                {item.quantity}
+                                                            </div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="text-lg font-bold text-white leading-tight">
+                                                                    {item.menu_name}
+                                                                </div>
+                                                                {item.add_ons.length > 0 && (
+                                                                    <div className="mt-3 flex flex-wrap gap-2">
+                                                                        {item.add_ons.map((addon, aIdx) => (
+                                                                            <span
+                                                                                key={aIdx}
+                                                                                className="rounded-full border border-emerald-400/18 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-100"
+                                                                            >
+                                                                                + {addon.name}
+                                                                            </span>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                                {cleanNote && (
+                                                                    <div className="mt-3 inline-flex rounded-full border border-rose-400/18 bg-rose-400/10 px-3 py-1 text-xs font-semibold text-rose-100">
+                                                                        {cleanNote}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        <div className="grid grid-cols-3 gap-2 border-t border-white/6 p-4">
                                             <button
                                                 onClick={() => handleCancel(order.id)}
-                                                className="bg-red-500/20 hover:bg-red-500/40 text-red-400 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-1 text-sm"
+                                                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-400/18 bg-rose-400/10 px-3 py-3 text-sm font-semibold text-rose-100 transition-colors hover:bg-rose-400/16"
                                             >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                <X className="h-4 w-4" />
                                                 ยกเลิก
                                             </button>
                                             <button
                                                 onClick={() => handlePrint(order)}
-                                                className="bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-1 text-sm"
+                                                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/8 bg-white/5 px-3 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
                                             >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                                                <Printer className="h-4 w-4" />
                                                 พิมพ์
                                             </button>
                                             <button
                                                 onClick={() => handleComplete(order.id)}
-                                                className="bg-green-600 hover:bg-green-500 text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-1 text-sm"
+                                                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-300 to-emerald-400 px-3 py-3 text-sm font-bold text-emerald-950 transition-transform hover:-translate-y-0.5"
                                             >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                                <Check className="h-4 w-4" />
                                                 เสร็จแล้ว
                                             </button>
                                         </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
+                                    </article>
+                                );
+                            })}
+                        </div>
+                    )}
+                </section>
             </div>
         </div>
     );

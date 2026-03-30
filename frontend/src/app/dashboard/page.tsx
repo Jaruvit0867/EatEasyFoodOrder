@@ -2,6 +2,22 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import {
+    BarChart3,
+    CircleAlert,
+    CircleCheckBig,
+    CircleDollarSign,
+    ClipboardList,
+    Clock3,
+    History,
+    LogOut,
+    Pencil,
+    Plus,
+    RefreshCcw,
+    Trash2,
+    TrendingUp,
+    X,
+} from "lucide-react";
 import { API_URL } from "../../config";
 import { checkAuth, getAuthHeaders, logout } from "../../auth";
 
@@ -254,9 +270,23 @@ export default function DashboardPage() {
     };
 
     const maxRevenue = Math.max(...dailySales.map(d => d.revenue), 1);
+    const scopeOptions: { value: ScopeType; label: string }[] = [
+        { value: "today", label: "วันนี้" },
+        { value: "7days", label: "7 วัน" },
+        { value: "30days", label: "30 วัน" },
+        { value: "all", label: "ทั้งหมด" },
+    ];
+    const tabOptions: { value: TabType; label: string; icon: typeof BarChart3 }[] = [
+        { value: "stats", label: "สถิติออเดอร์", icon: BarChart3 },
+        { value: "menu", label: "จัดการเมนู", icon: ClipboardList },
+        { value: "logs", label: "ประวัติออเดอร์", icon: History },
+    ];
+    const filteredMenuItems = menuItems.filter(
+        (item) => selectedCategory === "all" || item.category === selectedCategory
+    );
 
     const handleResetOrders = async () => {
-        const confirmText = "⚠️ คำเตือน: คุณต้องการลบข้อมูลออเดอร์ทั้งหมดใช่หรือไม่?\n\nการกระทำนี้ไม่สามารถย้อนกลับได้ ข้อมูลยอดขายและสถิติทั้งหมดจะหายไป!";
+        const confirmText = "คำเตือน: คุณต้องการลบข้อมูลออเดอร์ทั้งหมดใช่หรือไม่?\n\nการกระทำนี้ไม่สามารถย้อนกลับได้ ข้อมูลยอดขายและสถิติทั้งหมดจะหายไป!";
         if (!confirm(confirmText)) return;
 
         // Double confirm
@@ -269,24 +299,27 @@ export default function DashboardPage() {
             });
             const data = await res.json();
             if (data.success) {
-                alert("✅ ล้างข้อมูลสำเร็จเรียบร้อย");
+                alert("ล้างข้อมูลสำเร็จเรียบร้อย");
                 fetchOrderStats();
                 fetchAnalytics();
             } else {
-                alert("❌ เกิดข้อผิดพลาด: " + data.error);
+                alert("เกิดข้อผิดพลาด: " + data.error);
             }
         } catch (error) {
             console.error("Error resetting orders:", error);
-            alert("❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์");
+            alert("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์");
         }
     };
 
     // Show loading while checking auth
     if (authLoading) {
         return (
-            <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
-                <div className="text-orange-500 text-xl animate-pulse">กำลังตรวจสอบสิทธิ์...</div>
-            </div>
+            <main className="page-frame flex min-h-screen items-center justify-center px-4 py-8">
+                <div className="panel-surface flex w-full max-w-md items-center justify-center gap-3 rounded-[2rem] px-6 py-8 text-[var(--muted)]">
+                    <RefreshCcw className="h-5 w-5 animate-spin text-[var(--accent)]" />
+                    กำลังตรวจสอบสิทธิ์...
+                </div>
+            </main>
         );
     }
 
@@ -295,143 +328,168 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[#0f172a] text-white">
-            {/* Header */}
-            <header className="bg-[#1e293b] border-b border-gray-700/50 px-6 py-4">
-                <div className="max-w-7xl mx-auto flex justify-between items-center">
-                    <div>
-                        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-orange-400 to-red-500">
-                            📊 EASY Order - Dashboard
-                        </h1>
-                        <p className="text-gray-500 text-sm">สถิติออเดอร์ และจัดการเมนู</p>
+        <div className="page-frame min-h-screen px-4 py-5 sm:px-6 lg:px-8">
+            <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
+                <header className="panel-surface rounded-[2rem] px-6 py-6 sm:px-8">
+                    <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                        <div className="space-y-4">
+                            <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-[var(--muted)]">
+                                <BarChart3 className="h-4 w-4 text-[var(--accent)]" />
+                                ศูนย์ควบคุมร้านอาหาร
+                            </div>
+                            <div>
+                                <p className="section-kicker mb-3">Dashboard</p>
+                                <h1 className="display-font text-3xl text-white sm:text-4xl">
+                                    ภาพรวมร้าน เมนู และประวัติการขาย
+                                </h1>
+                                <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)] sm:text-base">
+                                    ใช้ดูสถิติออเดอร์ ปรับเมนู และเช็กความเคลื่อนไหวของร้านจากจุดเดียว โดยคง endpoint และ flow เดิมทั้งหมด
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3">
+                            <button
+                                onClick={handleResetOrders}
+                                className="inline-flex items-center gap-2 rounded-2xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm font-semibold text-rose-200 transition-colors hover:bg-rose-400/16"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                                ล้างข้อมูล
+                            </button>
+                            <button
+                                onClick={logout}
+                                className="inline-flex items-center gap-2 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                            >
+                                <LogOut className="h-4 w-4" />
+                                ออกจากระบบ
+                            </button>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={handleResetOrders}
-                            className="px-4 py-2 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/30 rounded-lg text-sm font-bold transition-all flex items-center gap-2"
-                        >
-                            <span>🗑️</span> ล้างข้อมูล
-                        </button>
-                        <button
-                            onClick={logout}
-                            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-all flex items-center gap-2"
-                        >
-                            <span>🚪</span> ออกจากระบบ
-                        </button>
+                </header>
+
+                <div className="panel-surface-soft rounded-[1.75rem] p-2">
+                    <div className="flex flex-wrap gap-2">
+                        {tabOptions.map((tab) => {
+                            const Icon = tab.icon;
+                            const isActive = activeTab === tab.value;
+                            return (
+                                <button
+                                    key={tab.value}
+                                    onClick={() => setActiveTab(tab.value)}
+                                    className={`inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-all ${isActive
+                                        ? "bg-gradient-to-r from-[var(--accent)] to-[var(--accent-strong)] text-stone-950 shadow-lg"
+                                        : "text-[var(--muted)] hover:bg-white/6 hover:text-white"
+                                        }`}
+                                >
+                                    <Icon className="h-4 w-4" />
+                                    {tab.label}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
-            </header>
 
-
-            {/* Tab Navigation */}
-            <div className="bg-[#1e293b]/50 border-b border-gray-700/50">
-                <div className="max-w-7xl mx-auto px-6">
-                    <div className="flex gap-1">
-                        <button
-                            onClick={() => setActiveTab("stats")}
-                            className={`px-6 py-3 font-medium text-sm transition-colors border-b-2 ${activeTab === "stats"
-                                ? "text-orange-400 border-orange-400"
-                                : "text-gray-400 border-transparent hover:text-white"
-                                }`}
-                        >
-                            📊 สถิติออเดอร์
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("menu")}
-                            className={`px-6 py-3 font-medium text-sm transition-colors border-b-2 ${activeTab === "menu"
-                                ? "text-orange-400 border-orange-400"
-                                : "text-gray-400 border-transparent hover:text-white"
-                                }`}
-                        >
-                            📋 จัดการเมนู
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("logs")}
-                            className={`px-6 py-3 font-medium text-sm transition-colors border-b-2 ${activeTab === "logs"
-                                ? "text-orange-400 border-orange-400"
-                                : "text-gray-400 border-transparent hover:text-white"
-                                }`}
-                        >
-                            📜 ประวัติออเดอร์
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <main className="max-w-7xl mx-auto px-6 py-8">
+                <main className="panel-surface rounded-[2rem] px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
                 {loading ? (
-                    <div className="text-center py-20 text-gray-500">กำลังโหลด...</div>
+                    <div className="flex items-center justify-center gap-3 py-20 text-[var(--muted)]">
+                        <RefreshCcw className="h-5 w-5 animate-spin text-[var(--accent)]" />
+                        กำลังโหลดข้อมูล...
+                    </div>
                 ) : activeTab === "stats" ? (
                     /* ============ STATS TAB ============ */
                     <div>
                         {/* Scope Selector */}
-                        <div className="flex justify-end mb-6">
-                            <div className="inline-flex bg-[#1e293b] rounded-lg p-1 border border-gray-700/50">
-                                <button
-                                    onClick={() => setScope("today")}
-                                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${scope === "today" ? "bg-orange-500 text-white" : "text-gray-400 hover:text-white"}`}
-                                >
-                                    วันนี้
-                                </button>
-                                <button
-                                    onClick={() => setScope("7days")}
-                                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${scope === "7days" ? "bg-orange-500 text-white" : "text-gray-400 hover:text-white"}`}
-                                >
-                                    7 วัน
-                                </button>
-                                <button
-                                    onClick={() => setScope("30days")}
-                                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${scope === "30days" ? "bg-orange-500 text-white" : "text-gray-400 hover:text-white"}`}
-                                >
-                                    30 วัน
-                                </button>
-                                <button
-                                    onClick={() => setScope("all")}
-                                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${scope === "all" ? "bg-orange-500 text-white" : "text-gray-400 hover:text-white"}`}
-                                >
-                                    ทั้งหมด
-                                </button>
+                        <div className="mb-6 flex justify-end">
+                            <div className="inline-flex flex-wrap rounded-2xl border border-white/8 bg-white/4 p-1.5">
+                                {scopeOptions.map((option) => (
+                                    <button
+                                        key={option.value}
+                                        onClick={() => setScope(option.value)}
+                                        className={`rounded-2xl px-4 py-2 text-sm font-semibold transition-colors ${scope === option.value
+                                            ? "bg-white text-stone-950"
+                                            : "text-[var(--muted)] hover:text-white"
+                                            }`}
+                                    >
+                                        {option.label}
+                                    </button>
+                                ))}
                             </div>
                         </div>
 
                         {/* Order Stats Cards */}
                         {orderStats && (
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-                                <div className="bg-[#1e293b] rounded-xl p-5 border border-gray-700/50">
-                                    <p className="text-gray-400 text-sm mb-1">ออเดอร์ทั้งหมด</p>
-                                    <p className="text-3xl font-bold text-white">{orderStats.total}</p>
-                                </div>
-                                <div className="bg-[#1e293b] rounded-xl p-5 border border-gray-700/50">
-                                    <p className="text-gray-400 text-sm mb-1">รอดำเนินการ</p>
-                                    <p className="text-3xl font-bold text-yellow-400">{orderStats.pending}</p>
-                                </div>
-                                <div className="bg-[#1e293b] rounded-xl p-5 border border-gray-700/50">
-                                    <p className="text-gray-400 text-sm mb-1">เสร็จสิ้น</p>
-                                    <p className="text-3xl font-bold text-green-400">{orderStats.completed}</p>
-                                </div>
-                                <div className="bg-[#1e293b] rounded-xl p-5 border border-gray-700/50">
-                                    <p className="text-gray-400 text-sm mb-1">ยกเลิก</p>
-                                    <p className="text-3xl font-bold text-red-400">{orderStats.cancelled}</p>
-                                </div>
-                                <div className="bg-[#1e293b] rounded-xl p-5 border border-orange-500/30 bg-gradient-to-br from-orange-500/10 to-transparent">
-                                    <p className="text-gray-400 text-sm mb-1">รายได้รวม</p>
-                                    <p className="text-3xl font-bold text-orange-400">{orderStats.revenue.toLocaleString()}฿</p>
-                                </div>
+                            <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+                                {[
+                                    {
+                                        label: "ออเดอร์ทั้งหมด",
+                                        value: orderStats.total,
+                                        tone: "text-white",
+                                        icon: ClipboardList,
+                                    },
+                                    {
+                                        label: "รอดำเนินการ",
+                                        value: orderStats.pending,
+                                        tone: "text-[var(--warning)]",
+                                        icon: Clock3,
+                                    },
+                                    {
+                                        label: "เสร็จสิ้น",
+                                        value: orderStats.completed,
+                                        tone: "text-[var(--success)]",
+                                        icon: CircleCheckBig,
+                                    },
+                                    {
+                                        label: "ยกเลิก",
+                                        value: orderStats.cancelled,
+                                        tone: "text-[var(--danger)]",
+                                        icon: CircleAlert,
+                                    },
+                                    {
+                                        label: "รายได้รวม",
+                                        value: `${orderStats.revenue.toLocaleString()}฿`,
+                                        tone: "text-[var(--accent)]",
+                                        icon: CircleDollarSign,
+                                    },
+                                ].map((card) => {
+                                    const Icon = card.icon;
+                                    return (
+                                        <div
+                                            key={card.label}
+                                            className="panel-surface-soft rounded-[1.6rem] p-5"
+                                        >
+                                            <div className="mb-4 flex items-center justify-between">
+                                                <p className="text-sm text-[var(--muted)]">{card.label}</p>
+                                                <div className="rounded-2xl border border-white/8 bg-white/5 p-2">
+                                                    <Icon className={`h-4 w-4 ${card.tone}`} />
+                                                </div>
+                                            </div>
+                                            <p className={`text-3xl font-bold ${card.tone}`}>{card.value}</p>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
 
-                        <div className="grid md:grid-cols-2 gap-6">
+                        <div className="grid gap-6 lg:grid-cols-2">
                             {/* Daily Sales Chart */}
-                            <div className="bg-[#1e293b] rounded-xl p-6 border border-gray-700/50">
-                                <h3 className="text-lg font-bold mb-4">📈 ยอดขายรายวัน</h3>
+                            <div className="panel-surface-soft rounded-[1.75rem] p-6">
+                                <div className="mb-5 flex items-center gap-3">
+                                    <div className="rounded-2xl border border-white/8 bg-white/5 p-2">
+                                        <TrendingUp className="h-5 w-5 text-[var(--accent)]" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-white">ยอดขายรายวัน</h3>
+                                        <p className="text-sm text-[var(--muted)]">เปรียบเทียบรายได้ตามช่วงเวลาที่เลือก</p>
+                                    </div>
+                                </div>
                                 <div className="h-48 flex items-end gap-1">
                                     {dailySales.slice(-14).map((day, i) => (
                                         <div key={i} className="flex-1 flex flex-col items-center gap-1">
                                             <div
-                                                className="w-full bg-gradient-to-t from-orange-500 to-orange-400 rounded-t transition-all"
+                                                className="w-full rounded-t-[0.85rem] bg-gradient-to-t from-[var(--accent-strong)] via-[var(--accent)] to-amber-200 transition-all"
                                                 style={{ height: `${(day.revenue / maxRevenue) * 100}%`, minHeight: day.revenue > 0 ? "8px" : "2px" }}
                                             />
-                                            <span className="text-[10px] text-gray-500">
+                                            <span className="text-[10px] text-[var(--muted)]">
                                                 {new Date(day.date).getDate()}
                                             </span>
                                         </div>
@@ -440,26 +498,34 @@ export default function DashboardPage() {
                             </div>
 
                             {/* Top Items */}
-                            <div className="bg-[#1e293b] rounded-xl p-6 border border-gray-700/50">
-                                <h3 className="text-lg font-bold mb-4">🏆 เมนูยอดนิยม</h3>
+                            <div className="panel-surface-soft rounded-[1.75rem] p-6">
+                                <div className="mb-5 flex items-center gap-3">
+                                    <div className="rounded-2xl border border-white/8 bg-white/5 p-2">
+                                        <ClipboardList className="h-5 w-5 text-[var(--accent)]" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-white">เมนูยอดนิยม</h3>
+                                        <p className="text-sm text-[var(--muted)]">รายการที่ถูกสั่งบ่อยที่สุดในช่วงที่เลือก</p>
+                                    </div>
+                                </div>
                                 {topItems.length === 0 ? (
-                                    <p className="text-gray-500 text-center py-8">ยังไม่มีข้อมูล</p>
+                                    <p className="py-8 text-center text-[var(--muted)]">ยังไม่มีข้อมูล</p>
                                 ) : (
                                     <div className="space-y-3">
                                         {topItems.slice(0, 5).map((item, i) => (
-                                            <div key={i} className="flex items-center gap-3">
-                                                <span className={`w-6 h-6 flex items-center justify-center rounded-full text-sm font-bold ${i === 0 ? "bg-yellow-500 text-black" :
-                                                    i === 1 ? "bg-gray-400 text-black" :
+                                            <div key={i} className="flex items-center gap-3 rounded-2xl border border-white/6 bg-white/4 px-4 py-3">
+                                                <span className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${i === 0 ? "bg-yellow-300 text-stone-950" :
+                                                    i === 1 ? "bg-slate-300 text-stone-950" :
                                                         i === 2 ? "bg-orange-700 text-white" :
-                                                            "bg-slate-700 text-gray-400"
+                                                            "bg-white/8 text-[var(--muted)]"
                                                     }`}>
                                                     {i + 1}
                                                 </span>
                                                 <div className="flex-1">
-                                                    <p className="font-medium">{item.name}</p>
-                                                    <p className="text-xs text-gray-500">{item.count} รายการ</p>
+                                                    <p className="font-medium text-white">{item.name}</p>
+                                                    <p className="text-xs text-[var(--muted)]">{item.count} รายการ</p>
                                                 </div>
-                                                <span className="text-orange-400 font-bold">{item.revenue.toLocaleString()}฿</span>
+                                                <span className="font-bold text-[var(--accent)]">{item.revenue.toLocaleString()}฿</span>
                                             </div>
                                         ))}
                                     </div>
@@ -470,18 +536,22 @@ export default function DashboardPage() {
                 ) : activeTab === "menu" ? (
                     /* ============ MENU TAB ============ */
                     <div>
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-white">จัดการเมนูอาหาร</h2>
+                        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h2 className="text-xl font-bold text-white">จัดการเมนูอาหาร</h2>
+                                <p className="mt-1 text-sm text-[var(--muted)]">แก้ข้อมูลราคา คีย์เวิร์ด และสถานะการขายโดยไม่แตะ logic backend</p>
+                            </div>
                             <button
                                 onClick={openAddModal}
-                                className="px-4 py-2 bg-orange-500 hover:bg-orange-400 rounded-lg font-bold text-sm transition-colors flex items-center gap-2"
+                                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[var(--accent)] to-[var(--accent-strong)] px-4 py-3 text-sm font-bold text-stone-950 transition-transform hover:-translate-y-0.5"
                             >
-                                <span>+</span> เพิ่มเมนูใหม่
+                                <Plus className="h-4 w-4" />
+                                เพิ่มเมนูใหม่
                             </button>
                         </div>
 
                         {/* Category Filter Tabs */}
-                        <div className="flex overflow-x-auto pb-4 gap-2 mb-2 custom-scrollbar">
+                        <div className="custom-scrollbar mb-4 flex gap-2 overflow-x-auto pb-2">
                             {["all", "standard", "premium", "special", "kapkhao", "soup", "salad"].map(cat => {
                                 const labelMap: Record<string, string> = {
                                     all: "ทั้งหมด",
@@ -496,9 +566,9 @@ export default function DashboardPage() {
                                     <button
                                         key={cat}
                                         onClick={() => setSelectedCategory(cat)}
-                                        className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium transition-colors ${selectedCategory === cat
-                                            ? "bg-orange-500 text-white"
-                                            : "bg-slate-800 text-gray-400 hover:bg-slate-700"
+                                        className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-colors ${selectedCategory === cat
+                                            ? "bg-white text-stone-950"
+                                            : "bg-white/5 text-[var(--muted)] hover:bg-white/8 hover:text-white"
                                             }`}
                                     >
                                         {labelMap[cat] || cat}
@@ -507,26 +577,25 @@ export default function DashboardPage() {
                             })}
                         </div>
 
-                        <div className="bg-[#1e293b] rounded-xl border border-gray-700/50 overflow-hidden shadow-xl">
+                        <div className="panel-surface-soft overflow-hidden rounded-[1.75rem]">
+                            <div className="overflow-x-auto">
                             <table className="w-full">
-                                <thead className="bg-[#0f172a]/50">
+                                <thead className="bg-black/10">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">ชื่อเมนู</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">คีย์เวิร์ด</th>
-                                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase">ราคา</th>
-                                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase">หมวด</th>
-                                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase">สถานะ</th>
-                                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase">จัดการ</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]">ชื่อเมนู</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]">คีย์เวิร์ด</th>
+                                        <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]">ราคา</th>
+                                        <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]">หมวด</th>
+                                        <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]">สถานะ</th>
+                                        <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]">จัดการ</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-700/50">
-                                    {menuItems
-                                        .filter(item => selectedCategory === "all" || item.category === selectedCategory)
-                                        .map((item) => (
-                                            <tr key={item.id} className={`hover:bg-[#0f172a]/30 transition-colors ${!item.is_active ? "opacity-50 grayscale" : ""}`}>
+                                <tbody className="divide-y divide-white/6">
+                                    {filteredMenuItems.map((item) => (
+                                            <tr key={item.id} className={`transition-colors hover:bg-white/4 ${!item.is_active ? "opacity-50 grayscale" : ""}`}>
                                                 <td className="px-4 py-3 font-medium text-white">{item.name}</td>
-                                                <td className="px-4 py-3 text-sm text-gray-400 max-w-xs truncate">{item.keywords}</td>
-                                                <td className="px-4 py-3 text-center font-bold text-orange-400">{item.base_price}฿</td>
+                                                <td className="max-w-xs truncate px-4 py-3 text-sm text-[var(--muted)]">{item.keywords}</td>
+                                                <td className="px-4 py-3 text-center font-bold text-[var(--accent)]">{item.base_price}฿</td>
                                                 <td className="px-4 py-3 text-center">
                                                     <span className={`px-2 py-1 rounded-md text-xs font-medium border ${getCategoryColor(item.category)}`}>
                                                         {item.category}
@@ -544,62 +613,68 @@ export default function DashboardPage() {
                                                     <div className="flex justify-center gap-2">
                                                         <button
                                                             onClick={() => openEditModal(item)}
-                                                            className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg transition-colors border border-blue-500/20"
+                                                            className="rounded-xl border border-sky-400/20 bg-sky-400/10 p-2 text-sky-300 transition-colors hover:bg-sky-400/18"
                                                             title="แก้ไข"
                                                         >
-                                                            ✏️
+                                                            <Pencil className="h-4 w-4" />
                                                         </button>
                                                         <button
                                                             onClick={() => handleDelete(item.id)}
-                                                            className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors border border-red-500/20"
+                                                            className="rounded-xl border border-rose-400/20 bg-rose-400/10 p-2 text-rose-300 transition-colors hover:bg-rose-400/18"
                                                             title="ลบ"
                                                         >
-                                                            🗑️
+                                                            <Trash2 className="h-4 w-4" />
                                                         </button>
                                                     </div>
                                                 </td>
                                             </tr>
                                         ))}
-                                    {menuItems.filter(item => selectedCategory === "all" || item.category === selectedCategory).length === 0 && (
+                                    {filteredMenuItems.length === 0 && (
                                         <tr>
-                                            <td colSpan={6} className="py-8 text-center text-gray-500">
+                                            <td colSpan={6} className="py-10 text-center text-[var(--muted)]">
                                                 ไม่พบเมนูในหมวดนี้
                                             </td>
                                         </tr>
                                     )}
                                 </tbody>
                             </table>
+                            </div>
                         </div>
                     </div>
                 ) : (
                     /* ============ LOGS TAB ============ */
                     <div>
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-white">ประวัติการสั่งซื้อ (Order Logs)</h2>
+                        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h2 className="text-xl font-bold text-white">ประวัติการสั่งซื้อ</h2>
+                                <p className="mt-1 text-sm text-[var(--muted)]">ติดตามเวลา รายการ และสถานะของทุกออเดอร์ย้อนหลัง</p>
+                            </div>
                             <button
                                 onClick={fetchOrders}
-                                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors"
+                                className="inline-flex items-center gap-2 rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
                             >
-                                🔄 รีเฟรช
+                                <RefreshCcw className="h-4 w-4" />
+                                รีเฟรช
                             </button>
                         </div>
 
-                        <div className="bg-[#1e293b] rounded-xl border border-gray-700/50 overflow-hidden shadow-xl">
+                        <div className="panel-surface-soft overflow-hidden rounded-[1.75rem]">
+                            <div className="overflow-x-auto">
                             <table className="w-full">
-                                <thead className="bg-[#0f172a]/50">
+                                <thead className="bg-black/10">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase w-16">ID</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase w-32">เวลา</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">รายการ</th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase w-24">ยอดรวม</th>
-                                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-400 uppercase w-28">สถานะ</th>
+                                        <th className="w-16 px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]">ID</th>
+                                        <th className="w-32 px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]">เวลา</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]">รายการ</th>
+                                        <th className="w-24 px-4 py-3 text-right text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]">ยอดรวม</th>
+                                        <th className="w-28 px-4 py-3 text-center text-xs font-medium uppercase tracking-[0.18em] text-[var(--muted)]">สถานะ</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-700/50">
+                                <tbody className="divide-y divide-white/6">
                                     {orders.map((order) => (
-                                        <tr key={order.id} className="hover:bg-[#0f172a]/30 transition-colors">
-                                            <td className="px-4 py-3 text-sm font-mono text-gray-500">#{order.id}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-300">
+                                        <tr key={order.id} className="transition-colors hover:bg-white/4">
+                                            <td className="px-4 py-3 text-sm font-mono text-[var(--muted)]">#{order.id}</td>
+                                            <td className="px-4 py-3 text-sm text-white/85">
                                                 {new Date(order.created_at).toLocaleString('th-TH', {
                                                     hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short'
                                                 })}
@@ -615,7 +690,7 @@ export default function DashboardPage() {
                                                                 </span>
                                                             )}
                                                             {item.note && (
-                                                                <span className="text-xs text-orange-400 block ml-4 italic">
+                                                                <span className="ml-4 block text-xs italic text-[var(--accent)]">
                                                                     "{item.note}"
                                                                 </span>
                                                             )}
@@ -623,7 +698,7 @@ export default function DashboardPage() {
                                                     ))}
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-3 text-right font-bold text-orange-400">
+                                            <td className="px-4 py-3 text-right font-bold text-[var(--accent)]">
                                                 {order.total_price.toLocaleString()}฿
                                             </td>
                                             <td className="px-4 py-3 text-center">
@@ -639,64 +714,78 @@ export default function DashboardPage() {
                                     ))}
                                     {orders.length === 0 && (
                                         <tr>
-                                            <td colSpan={5} className="py-8 text-center text-gray-500">
+                                            <td colSpan={5} className="py-10 text-center text-[var(--muted)]">
                                                 ยังไม่มีประวัติออเดอร์
                                             </td>
                                         </tr>
                                     )}
                                 </tbody>
                             </table>
+                            </div>
                         </div>
                     </div>
                 )}
             </main>
+            </div>
 
             {/* Add/Edit Modal */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                    <div className="bg-[#1e293b] rounded-2xl w-full max-w-md p-6 border border-gray-700">
-                        <h2 className="text-xl font-bold mb-6">
-                            {editingItem ? "✏️ แก้ไขเมนู" : "➕ เพิ่มเมนูใหม่"}
-                        </h2>
+                    <div className="panel-surface w-full max-w-md rounded-[2rem] p-6">
+                        <div className="mb-6 flex items-start justify-between gap-4">
+                            <div>
+                                <p className="section-kicker mb-3">Menu Editor</p>
+                                <h2 className="text-xl font-bold text-white">
+                                    {editingItem ? "แก้ไขเมนู" : "เพิ่มเมนูใหม่"}
+                                </h2>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowModal(false)}
+                                className="rounded-2xl border border-white/8 bg-white/5 p-2 text-[var(--muted)] transition-colors hover:bg-white/10 hover:text-white"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <label className="block text-sm text-gray-400 mb-1">ชื่อเมนู</label>
+                                <label className="mb-1 block text-sm text-[var(--muted)]">ชื่อเมนู</label>
                                 <input
                                     type="text"
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    className="w-full px-4 py-2 bg-[#0f172a] border border-gray-700 rounded-lg focus:border-orange-500 focus:outline-none"
+                                    className="w-full rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-white focus:border-[var(--accent)] focus:outline-none"
                                     required
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm text-gray-400 mb-1">คีย์เวิร์ด (คั่นด้วย ,)</label>
+                                <label className="mb-1 block text-sm text-[var(--muted)]">คีย์เวิร์ด (คั่นด้วย ,)</label>
                                 <input
                                     type="text"
                                     value={formData.keywords}
                                     onChange={(e) => setFormData({ ...formData, keywords: e.target.value })}
                                     placeholder="กะเพรา,หมู"
-                                    className="w-full px-4 py-2 bg-[#0f172a] border border-gray-700 rounded-lg focus:border-orange-500 focus:outline-none"
+                                    className="w-full rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-white placeholder:text-white/30 focus:border-[var(--accent)] focus:outline-none"
                                     required
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm text-gray-400 mb-1">ราคา (บาท)</label>
+                                    <label className="mb-1 block text-sm text-[var(--muted)]">ราคา (บาท)</label>
                                     <input
                                         type="number"
                                         value={formData.base_price}
                                         onChange={(e) => setFormData({ ...formData, base_price: parseInt(e.target.value) || 0 })}
-                                        className="w-full px-4 py-2 bg-[#0f172a] border border-gray-700 rounded-lg focus:border-orange-500 focus:outline-none"
+                                        className="w-full rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-white focus:border-[var(--accent)] focus:outline-none"
                                         required
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm text-gray-400 mb-1">หมวด</label>
+                                    <label className="mb-1 block text-sm text-[var(--muted)]">หมวด</label>
                                     <select
                                         value={formData.category}
                                         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                                        className="w-full px-4 py-2 bg-[#0f172a] border border-gray-700 rounded-lg focus:border-orange-500 focus:outline-none"
+                                        className="w-full rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-white focus:border-[var(--accent)] focus:outline-none"
                                     >
                                         <option value="standard">Standard (50฿)</option>
                                         <option value="premium">Premium (60฿)</option>
@@ -711,13 +800,13 @@ export default function DashboardPage() {
                                 <button
                                     type="button"
                                     onClick={() => setShowModal(false)}
-                                    className="flex-1 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors"
+                                    className="flex-1 rounded-2xl border border-white/8 bg-white/5 py-3 font-medium text-white transition-colors hover:bg-white/10"
                                 >
                                     ยกเลิก
                                 </button>
                                 <button
                                     type="submit"
-                                    className="flex-1 py-2 bg-orange-500 hover:bg-orange-400 rounded-lg font-bold transition-colors"
+                                    className="flex-1 rounded-2xl bg-gradient-to-r from-[var(--accent)] to-[var(--accent-strong)] py-3 font-bold text-stone-950 transition-transform hover:-translate-y-0.5"
                                 >
                                     {editingItem ? "บันทึก" : "เพิ่มเมนู"}
                                 </button>
