@@ -233,10 +233,11 @@ canvas {
   background: linear-gradient(180deg, rgba(243, 162, 79, 0.52), rgba(239, 107, 74, 0.38));
 }
 
-@media (orientation: landscape) and (min-width: 768px) and (max-width: 1279px) {
+@media (orientation: landscape) and (min-width: 540px) and (max-width: 1279px) {
   .order-layout {
-    grid-template-columns: minmax(0, 1.06fr) minmax(320px, 0.94fr);
+    grid-template-columns: minmax(0, 1.04fr) minmax(260px, 0.96fr);
     align-items: stretch;
+    gap: 1rem;
   }
 
   .order-panel {
@@ -266,7 +267,27 @@ canvas {
   }
 }
 
+@media (orientation: landscape) and (min-width: 540px) and (max-width: 767px) {
+  .order-main-panel {
+    padding: 1rem;
+  }
+
+  .order-cart-panel {
+    min-width: 0;
+  }
+
+  .order-mic-button {
+    width: clamp(10.5rem, 28vw, 13rem);
+    height: clamp(10.5rem, 28vw, 13rem);
+  }
+}
+
 @media (orientation: landscape) and (max-height: 540px) {
+  .order-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(250px, 0.9fr);
+    gap: 0.875rem;
+  }
+
   .order-main-panel,
   .order-cart-panel {
     min-height: calc(100dvh - 2rem);
