@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 from PIL import Image, ImageDraw, ImageFont
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Depends, Response, Cookie
+from fastapi import FastAPI, HTTPException, Depends, Response, Cookie, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBasic
 from pydantic import BaseModel
@@ -1185,6 +1185,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+api = APIRouter(prefix="/api")
+
 # ============ Authentication Helpers ============
 def create_access_token(username: str) -> str:
     """Create JWT token for authenticated user"""
@@ -1229,7 +1231,7 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
-@app.post("/auth/login")
+@api.post("/auth/login")
 async def login(request: LoginRequest):
     """Login with username and password, returns JWT token"""
     # Check credentials against environment variables
@@ -1242,20 +1244,21 @@ async def login(request: LoginRequest):
     # Return token in response body (for localStorage storage)
     return {"success": True, "message": "Login successful", "token": token}
 
-@app.get("/auth/verify")
+@api.get("/auth/verify")
 async def verify_auth(user: str = Depends(get_current_user)):
     """Verify if current user is authenticated"""
     if user:
         return {"authenticated": True, "username": user}
     return {"authenticated": False}
 
-@app.post("/auth/logout")
+@api.post("/auth/logout")
 async def logout():
     """Logout - client should remove token from localStorage"""
     return {"success": True, "message": "Logged out"}
 
 # ============ Health Check ============
-@app.get("/")
+@app.get("/", include_in_schema=False)
+@api.get("/")
 async def health_check():
 
     """Health check endpoint"""
@@ -1265,7 +1268,7 @@ async def health_check():
 class TextOrderRequest(BaseModel):
     transcript: str
 
-@app.post("/process-text-order", response_model=OrderResponse)
+@api.post("/process-text-order", response_model=OrderResponse)
 async def process_text_order(request: TextOrderRequest, _user: str = Depends(require_auth)):
     """Process order from text using Two-Stage Verification"""
     try:
@@ -1403,7 +1406,7 @@ async def process_text_order(request: TextOrderRequest, _user: str = Depends(req
         print(f"Error processing text order: {e}")
         return OrderResponse(success=False, error=f"เกิดข้อผิดพลาด: {str(e)}")
 
-@app.post("/confirm-order", response_model=ConfirmOrderResponse)
+@api.post("/confirm-order", response_model=ConfirmOrderResponse)
 async def confirm_order(request: ConfirmOrderRequest, _user: str = Depends(require_auth)):
     """Save confirmed order to database and print receipt"""
     try:
@@ -1424,7 +1427,7 @@ async def confirm_order(request: ConfirmOrderRequest, _user: str = Depends(requi
     except Exception as e:
         return ConfirmOrderResponse(success=False, message=f"เกิดข้อผิดพลาด: {str(e)}")
 
-@app.get("/orders")
+@api.get("/orders")
 async def list_orders(_user: str = Depends(require_auth)):
     """Get all orders (for analytics/admin)"""
     try:
@@ -1433,7 +1436,7 @@ async def list_orders(_user: str = Depends(require_auth)):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@app.get("/orders/pending")
+@api.get("/orders/pending")
 async def list_pending_orders(_user: str = Depends(require_auth)):
     """Get pending orders (for kitchen display)"""
     try:
@@ -1442,7 +1445,7 @@ async def list_pending_orders(_user: str = Depends(require_auth)):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@app.post("/orders/{order_id}/complete")
+@api.post("/orders/{order_id}/complete")
 async def mark_order_complete(order_id: int, _user: str = Depends(require_auth)):
     """Mark a single order as completed"""
     try:
@@ -1453,7 +1456,7 @@ async def mark_order_complete(order_id: int, _user: str = Depends(require_auth))
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@app.post("/orders/{order_id}/cancel")
+@api.post("/orders/{order_id}/cancel")
 async def mark_order_cancelled(order_id: int, _user: str = Depends(require_auth)):
     """Mark a single order as cancelled"""
     try:
@@ -1465,7 +1468,7 @@ async def mark_order_cancelled(order_id: int, _user: str = Depends(require_auth)
         return {"success": False, "error": str(e)}
 
 
-@app.delete("/orders")
+@api.delete("/orders")
 async def complete_all_orders(_user: str = Depends(require_auth)):
     """Mark all pending orders as completed (kitchen reset - data preserved for analytics)"""
     try:
@@ -1474,7 +1477,7 @@ async def complete_all_orders(_user: str = Depends(require_auth)):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@app.delete("/orders/delete-all")
+@api.delete("/orders/delete-all")
 async def delete_all_orders(_user: str = Depends(require_auth)):
     """Actually delete all orders (admin only - use with caution)"""
     try:
@@ -1484,7 +1487,7 @@ async def delete_all_orders(_user: str = Depends(require_auth)):
         return {"success": False, "error": str(e)}
 
 # ============ Menu Management Endpoints ============
-@app.get("/menu-items")
+@api.get("/menu-items")
 async def list_menu_items(_user: str = Depends(require_auth)):
     """Get all menu items"""
     try:
@@ -1493,7 +1496,7 @@ async def list_menu_items(_user: str = Depends(require_auth)):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@app.post("/menu-items")
+@api.post("/menu-items")
 async def add_menu_item(item: MenuItemCreate, _user: str = Depends(require_auth)):
     """Add a new menu item"""
     try:
@@ -1504,7 +1507,7 @@ async def add_menu_item(item: MenuItemCreate, _user: str = Depends(require_auth)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.put("/menu-items/{item_id}")
+@api.put("/menu-items/{item_id}")
 async def edit_menu_item(item_id: int, updates: MenuItemUpdate, _user: str = Depends(require_auth)):
     """Update a menu item"""
     try:
@@ -1515,7 +1518,7 @@ async def edit_menu_item(item_id: int, updates: MenuItemUpdate, _user: str = Dep
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("/menu-items/{item_id}")
+@api.delete("/menu-items/{item_id}")
 async def remove_menu_item(item_id: int, _user: str = Depends(require_auth)):
     """Delete a menu item"""
     try:
@@ -1526,7 +1529,7 @@ async def remove_menu_item(item_id: int, _user: str = Depends(require_auth)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/menu-cache/reload")
+@api.post("/menu-cache/reload")
 async def refresh_cache(_user: str = Depends(require_auth)):
     """Manually reload menu cache"""
     try:
@@ -1541,7 +1544,7 @@ async def refresh_cache(_user: str = Depends(require_auth)):
         return {"success": False, "error": str(e)}
 
 # ============ Analytics Endpoints ============
-@app.get("/analytics/summary")
+@api.get("/analytics/summary")
 async def get_summary(_user: str = Depends(require_auth)):
     """Get sales summary analytics"""
     try:
@@ -1550,7 +1553,7 @@ async def get_summary(_user: str = Depends(require_auth)):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@app.get("/analytics/top-items")
+@api.get("/analytics/top-items")
 async def get_top_selling(limit: int = 10, _user: str = Depends(require_auth)):
     """Get top selling items"""
     try:
@@ -1559,7 +1562,7 @@ async def get_top_selling(limit: int = 10, _user: str = Depends(require_auth)):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@app.get("/analytics/daily-sales")
+@api.get("/analytics/daily-sales")
 async def get_daily(days: int = 7, _user: str = Depends(require_auth)):
     """Get daily sales data"""
     try:
@@ -1568,7 +1571,7 @@ async def get_daily(days: int = 7, _user: str = Depends(require_auth)):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@app.get("/analytics/order-stats")
+@api.get("/analytics/order-stats")
 async def get_order_stats(days: int = 7, _user: str = Depends(require_auth)):
     """Get order statistics by status"""
     try:
@@ -1578,13 +1581,15 @@ async def get_order_stats(days: int = 7, _user: str = Depends(require_auth)):
         return {"success": False, "error": str(e)}
 
 
-@app.get("/addons")
+@api.get("/addons")
 async def get_addons(_user: str = Depends(require_auth)):
     """Get available add-on options"""
     return {"addons": [
         {"name": name, "price": info["price"], "emoji": info["emoji"]}
         for name, info in ADD_ONS.items()
     ]}
+
+app.include_router(api)
 
 # ============ Run Server ============
 if __name__ == "__main__":

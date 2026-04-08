@@ -1,9 +1,4 @@
-const publicApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
-
-const isLocalDevHost = typeof window !== "undefined" &&
-  ["localhost", "127.0.0.1"].includes(window.location.hostname);
-
-// Local development uses the Next.js rewrite. Static deployments call the backend directly.
-export const API_URL = isLocalDevHost
-  ? "/api"
-  : publicApiUrl || "https://eateasy-backend.azurewebsites.net";
+// All frontend traffic goes through the same /api path.
+// Local development uses a Next.js rewrite and Azure Static Web Apps
+// proxies the same path to the linked backend in production.
+export const API_URL = "/api";

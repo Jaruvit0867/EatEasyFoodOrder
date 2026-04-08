@@ -17,13 +17,19 @@ The current deployment model is:
 ```text
 Browser / Tablet
   -> Frontend (Next.js static export)
+  -> /api on Static Web Apps or Next.js dev server
   -> Backend API (FastAPI)
   -> SQLite database
 
 Restaurant Printer
   -> PrintApp desktop app
+  -> Calls configured base URL + /api
   -> Polls backend and prints locally
 ```
+
+Detailed workflow diagram:
+
+- [docs/WORKFLOW.md](./docs/WORKFLOW.md)
 
 ## Main Features
 
@@ -125,7 +131,7 @@ These are the main backend variables used in local and cloud environments.
 | `ADMIN_USERNAME` | Yes | `admin` | single admin login |
 | `ADMIN_PASSWORD` | Yes | `change-me` | single admin login |
 | `JWT_SECRET` | Yes | `replace-with-random-secret` | JWT signing secret |
-| `ALLOWED_ORIGINS` | Yes | `https://your-app.azurestaticapps.net` | comma-separated CORS origins |
+| `ALLOWED_ORIGINS` | Yes | `http://localhost:3000,https://localhost:3000` | comma-separated browser origins for direct backend access |
 | `PRINTER_ENABLED` | No | `false` | keep `false` when using `printapp/` |
 | `WEBSITES_PORT` | Azure only | `8000` | required for App Service custom container |
 | `WEBSITES_ENABLE_APP_SERVICE_STORAGE` | Azure only | `true` | enables persistent `/home` storage |
@@ -143,11 +149,12 @@ PRINTER_ENABLED=false
 
 ### Frontend
 
-| Variable | Required | Example | Notes |
-|---|---|---|---|
-| `NEXT_PUBLIC_API_URL` | Production build | `https://your-backend.azurewebsites.net` | backend base URL |
+No frontend environment variables are required.
 
-In local development the frontend can still use Next.js rewrites to proxy `/api/*` to the local backend.
+The frontend always calls `/api`.
+
+- In local development, Next.js rewrites `/api/*` to `http://127.0.0.1:8000/api/*`
+- In Azure production, Static Web Apps should link the App Service backend so the same `/api/*` path is proxied to the backend
 
 ## Docker: Build and Test the Backend
 
@@ -175,13 +182,13 @@ docker run --rm -p 8000:8000 \
 Health check:
 
 ```bash
-curl http://127.0.0.1:8000
+curl http://127.0.0.1:8000/api/
 ```
 
 Login:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/auth/login \
+curl -X POST http://127.0.0.1:8000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin123"}'
 ```
@@ -265,7 +272,7 @@ DATABASE_PATH=/home/data/orders.sqlite
 ADMIN_USERNAME=...
 ADMIN_PASSWORD=...
 JWT_SECRET=...
-ALLOWED_ORIGINS=https://your-app.azurestaticapps.net
+ALLOWED_ORIGINS=http://localhost:3000,https://localhost:3000
 PRINTER_ENABLED=false
 ```
 
@@ -274,6 +281,7 @@ Important notes:
 - if you use SQLite, keep the backend at a single instance
 - store the SQLite file under `/home/...` or a mounted Azure Files path
 - do not store SQLite in `/app/...` because container-layer data is not reliable across redeploys
+- if the frontend uses Azure Static Web Apps linked backend routing, browser traffic goes through `/api` on the static site and does not require direct browser CORS access to the App Service URL
 
 ### Backend persistence options
 
@@ -304,24 +312,25 @@ Production build command:
 
 ```bash
 cd frontend
-NEXT_PUBLIC_API_URL=https://your-backend.azurewebsites.net npm run build
+npm run build
 ```
 
 If you deploy manually, upload the `frontend/out` directory.
 
 If you use Azure Static Web Apps from the portal, configure the app location as `frontend` and the output location as `out`.
 
-If you use Azure Static Web Apps with GitHub integration, make sure the build gets:
+Recommended production setup:
 
-```text
-NEXT_PUBLIC_API_URL=https://your-backend.azurewebsites.net
-```
+- build the frontend normally with no extra frontend env vars
+- link the Azure App Service backend to the Static Web App so `/api/*` is proxied to the backend `/api/*`
+- keep the frontend calling relative `/api` routes only
 
-After the Static Web App is created, add its domain to backend CORS:
+Notes:
 
-```text
-ALLOWED_ORIGINS=https://your-app.azurestaticapps.net
-```
+- Azure Static Web Apps linked backends require the Standard plan
+- Linked backends are not available for pull request preview environments
+- No `NEXT_PUBLIC_API_URL` is needed in the GitHub Actions workflow or portal build settings
+- If you still access the backend directly from a browser outside Static Web Apps, add those browser origins to `ALLOWED_ORIGINS`
 
 ### PrintApp Deployment
 
@@ -332,6 +341,8 @@ Recommended setup:
 - deploy backend to Azure
 - keep `PRINTER_ENABLED=false` on the backend
 - run the printer app locally so it can reach the network printer or local print queue
+- set the printer app Base URL to either the Static Web App domain or the backend root URL; the app automatically targets `/api`
+- if the App Service is locked down to only accept traffic from the linked Static Web App, use the Static Web App domain in the printer app
 
 ## Authentication Model
 

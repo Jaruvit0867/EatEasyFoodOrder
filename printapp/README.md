@@ -40,7 +40,8 @@ build_windows.bat
 ## 🖥️ การใช้งาน
 
 1. **ตั้งค่า Settings**
-   - API URL: URL ของ Backend (เช่น `https://eateasy-backend.azurewebsites.net`)
+   - Base URL: URL ของ Static Web App หรือ Backend root (เช่น `https://your-app.azurestaticapps.net` หรือ `https://eateasy-backend.azurewebsites.net`)
+   - แอปจะเติม `/api` ให้เองอัตโนมัติ
    - Username/Password: ข้อมูล Admin login
    - Printer IP/Port: IP ของเครื่องพิมพ์ Xprinter (เช่น `192.168.1.200:9100`)
 

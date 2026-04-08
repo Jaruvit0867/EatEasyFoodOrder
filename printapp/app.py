@@ -58,10 +58,10 @@ class EatEasyPrinterApp(ctk.CTk):
         self.form_frame = ctk.CTkFrame(self.settings_frame, fg_color="transparent")
         self.form_frame.pack(fill="x", padx=15)
         
-        # API URL
-        self.api_url_label = ctk.CTkLabel(self.form_frame, text="API URL:", anchor="w")
+        # Base URL
+        self.api_url_label = ctk.CTkLabel(self.form_frame, text="Base URL:", anchor="w")
         self.api_url_label.pack(fill="x")
-        self.api_url_entry = ctk.CTkEntry(self.form_frame, placeholder_text="https://your-backend.azurewebsites.net")
+        self.api_url_entry = ctk.CTkEntry(self.form_frame, placeholder_text="https://your-app.azurestaticapps.net")
         self.api_url_entry.pack(fill="x", pady=(2, 12))
         
         # Username & Password row

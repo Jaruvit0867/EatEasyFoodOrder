@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-API_BASE = "http://localhost:8000"
+API_BASE = "http://localhost:8000/api"
 PROCESS_URL = f"{API_BASE}/process-text-order"
 LOGIN_URL = f"{API_BASE}/auth/login"
 AUTH_HEADERS = {}

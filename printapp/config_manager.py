@@ -23,7 +23,7 @@ def get_config_path():
     return os.path.join(get_config_dir(), "config.json")
 
 DEFAULT_CONFIG = {
-    "api_url": "https://eateasy-backend.azurewebsites.net",
+    "api_url": "",
     "admin_username": "admin",
     "admin_password": "",
     "printer_ip": "192.168.1.200",

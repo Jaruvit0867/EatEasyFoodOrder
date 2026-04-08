@@ -24,6 +24,13 @@ THAI_FONT_PATHS = [
     "C:\\Windows\\Fonts\\tahoma.ttf",
 ]
 
+def normalize_api_url(raw_url: str) -> str:
+    """Normalize a user-provided base URL to the /api root."""
+    url = raw_url.strip().rstrip("/")
+    if not url:
+        return ""
+    return url if url.endswith("/api") else f"{url}/api"
+
 class PrinterAgent:
     def __init__(self, config: dict, log_callback=None):
         """
@@ -37,6 +44,7 @@ class PrinterAgent:
         - printer_port
         """
         self.config = config
+        self.api_url = normalize_api_url(config.get("api_url", ""))
         self.log_callback = log_callback or print
         self.auth_token = None
         self.last_printed_id = 0
@@ -120,8 +128,12 @@ class PrinterAgent:
     def login(self) -> bool:
         """Authenticate and get JWT token."""
         try:
+            if not self.api_url:
+                self.log("❌ Base URL is empty. Please save the app URL or backend URL first.")
+                return False
+
             self.log("🔐 Logging in...")
-            url = f"{self.config['api_url']}/auth/login"
+            url = f"{self.api_url}/auth/login"
             res = requests.post(url, json={
                 "username": self.config["admin_username"],
                 "password": self.config["admin_password"]
@@ -147,7 +159,7 @@ class PrinterAgent:
                     return 0
             
             headers = {"Authorization": f"Bearer {self.auth_token}"}
-            res = requests.get(f"{self.config['api_url']}/orders", headers=headers, timeout=10)
+            res = requests.get(f"{self.api_url}/orders", headers=headers, timeout=10)
             if res.status_code == 200:
                 data = res.json()
                 orders = data.get("orders", [])
@@ -253,7 +265,7 @@ class PrinterAgent:
                 
         try:
             headers = {"Authorization": f"Bearer {self.auth_token}"}
-            res = requests.get(f"{self.config['api_url']}/orders", headers=headers, timeout=10)
+            res = requests.get(f"{self.api_url}/orders", headers=headers, timeout=10)
             
             if res.status_code == 401:
                 self.log("🔄 Token expired, re-logging in...")

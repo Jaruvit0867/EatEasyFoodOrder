@@ -1,0 +1,202 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1200" viewBox="0 0 1600 1200" role="img" aria-labelledby="title desc">
+  <title id="title">EatEasy workflow overview</title>
+  <desc id="desc">A simple workflow diagram for EatEasy showing input, frontend, backend, output, database, and local printer services.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fffdfa"/>
+      <stop offset="100%" stop-color="#f5efe5"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1f2937"/>
+    </marker>
+    <style>
+      .bullet {
+        font-family: "SF Pro Text", "Segoe UI", Arial, sans-serif;
+        font-size: 24px;
+        font-weight: 500;
+        fill: #111827;
+      }
+      .bullet-strong {
+        font-weight: 800;
+      }
+      .title {
+        font-family: "SF Pro Display", "Segoe UI", Arial, sans-serif;
+        font-size: 58px;
+        font-weight: 800;
+        fill: #111827;
+      }
+      .section-label {
+        font-family: "SF Pro Display", "Segoe UI", Arial, sans-serif;
+        font-size: 32px;
+        font-style: italic;
+        fill: #4b5563;
+      }
+      .box-label {
+        font-family: "SF Pro Display", "Segoe UI", Arial, sans-serif;
+        font-size: 24px;
+        font-style: italic;
+        fill: #4b5563;
+      }
+      .box-title {
+        font-family: "SF Pro Display", "Segoe UI", Arial, sans-serif;
+        font-size: 26px;
+        font-weight: 800;
+        fill: #374151;
+      }
+      .box-copy {
+        font-family: "SF Pro Text", "Segoe UI", Arial, sans-serif;
+        font-size: 19px;
+        font-weight: 600;
+        fill: #4b5563;
+      }
+      .flow-label {
+        font-family: "SF Pro Text", "Segoe UI", Arial, sans-serif;
+        font-size: 17px;
+        font-weight: 700;
+        fill: #4b5563;
+      }
+      .dashed-main {
+        fill: rgba(255,255,255,0.38);
+        stroke: #1f2937;
+        stroke-width: 7;
+        stroke-dasharray: 10 10;
+      }
+      .dashed-sub {
+        fill: rgba(255,255,255,0.28);
+        stroke: #ef4444;
+        stroke-width: 7;
+        stroke-dasharray: 10 10;
+      }
+      .flow {
+        fill: none;
+        stroke: #1f2937;
+        stroke-width: 5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        marker-end: url(#arrow);
+      }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1200" fill="url(#bg)"/>
+
+  <text x="78" y="62" class="bullet">• <tspan class="bullet-strong">Web Speech API, Next.js, FastAPI, SQLite</tspan><tspan> - Order capture and processing</tspan></text>
+  <text x="78" y="112" class="bullet">• <tspan class="bullet-strong">PrintApp, Thermal Printer</tspan><tspan> - Local receipt printing</tspan></text>
+
+  <text x="44" y="242" class="title">Workflow:</text>
+
+  <rect x="48" y="282" width="1450" height="430" rx="40" class="dashed-main"/>
+  <text x="775" y="324" class="section-label" text-anchor="middle">Web Application</text>
+
+  <rect x="92" y="356" width="250" height="190" rx="34" fill="#fdba74" filter="url(#shadow)"/>
+  <text x="142" y="386" class="box-label">Input Layer</text>
+  <g transform="translate(150 404)">
+    <circle cx="52" cy="52" r="42" fill="#ffffff" opacity="0.92"/>
+    <circle cx="28" cy="52" r="6" fill="#111827"/>
+    <circle cx="52" cy="52" r="6" fill="#111827"/>
+    <circle cx="76" cy="52" r="6" fill="#111827"/>
+    <path d="M92 80 L106 92 L101 72" fill="#ffffff" opacity="0.92"/>
+  </g>
+  <text x="148" y="504" class="box-title">Text / Voice</text>
+  <text x="148" y="536" class="box-copy">Microphone or manual tap</text>
+
+  <rect x="432" y="356" width="250" height="288" rx="34" fill="#a8c9f0" filter="url(#shadow)"/>
+  <text x="478" y="386" class="box-label">Frontend Layer</text>
+  <g transform="translate(478 404)">
+    <rect x="0" y="0" width="118" height="90" rx="10" fill="#ffffff" stroke="#374151" stroke-width="4"/>
+    <rect x="0" y="0" width="118" height="16" rx="10" fill="#facc15"/>
+    <circle cx="12" cy="8" r="3" fill="#ef4444"/>
+    <circle cx="22" cy="8" r="3" fill="#22c55e"/>
+    <circle cx="32" cy="8" r="3" fill="#3b82f6"/>
+    <rect x="20" y="26" width="72" height="20" rx="4" fill="#f3f4f6" stroke="#4b5563" stroke-width="2"/>
+    <rect x="18" y="54" width="82" height="18" rx="4" fill="#f3f4f6" stroke="#4b5563" stroke-width="2"/>
+    <circle cx="16" cy="36" r="6" fill="#111827"/>
+    <circle cx="16" cy="64" r="6" fill="#111827"/>
+  </g>
+  <text x="452" y="530" class="box-title">Web UI</text>
+  <text x="452" y="564" class="box-copy">• Order page</text>
+  <text x="452" y="592" class="box-copy">• Kitchen page</text>
+  <text x="452" y="620" class="box-copy">• Dashboard</text>
+
+  <rect x="812" y="342" width="322" height="330" rx="38" fill="#fbaea0" filter="url(#shadow)"/>
+  <text x="852" y="374" class="box-label">Backend Layer</text>
+  <g transform="translate(898 394)">
+    <rect x="0" y="0" width="122" height="108" rx="16" fill="#dbeafe"/>
+    <rect x="0" y="0" width="122" height="22" rx="16" fill="#4063a9"/>
+    <circle cx="18" cy="11" r="7" fill="#f87171"/>
+    <circle cx="40" cy="11" r="7" fill="#facc15"/>
+    <circle cx="62" cy="11" r="7" fill="#4ade80"/>
+    <circle cx="60" cy="62" r="24" fill="#38bdf8"/>
+    <rect x="28" y="52" width="64" height="22" rx="11" fill="#3b82f6"/>
+    <text x="60" y="68" text-anchor="middle" style="font-family: 'SF Pro Text', 'Segoe UI', Arial, sans-serif; font-size: 18px; font-weight: 800; fill: white;">API</text>
+  </g>
+  <text x="858" y="548" class="box-title">FastAPI</text>
+  <text x="858" y="582" class="box-copy">• REST API</text>
+  <text x="858" y="610" class="box-copy">• Authentication</text>
+  <text x="858" y="638" class="box-copy">• Order processing</text>
+  <text x="858" y="666" class="box-copy">• Menu + analytics</text>
+
+  <rect x="1202" y="356" width="252" height="288" rx="34" fill="#fdba74" filter="url(#shadow)"/>
+  <text x="1248" y="386" class="box-label">Output Layer</text>
+  <g transform="translate(1260 404)">
+    <rect x="0" y="0" width="102" height="90" rx="12" fill="#8ab6f9"/>
+    <rect x="10" y="16" width="28" height="54" rx="5" fill="#a7f3d0"/>
+    <rect x="46" y="16" width="42" height="54" rx="5" fill="#fde68a"/>
+    <rect x="16" y="24" width="16" height="4" rx="2" fill="#ffffff"/>
+    <rect x="16" y="34" width="16" height="4" rx="2" fill="#ffffff"/>
+    <rect x="16" y="44" width="16" height="4" rx="2" fill="#ffffff"/>
+    <rect x="52" y="24" width="30" height="4" rx="2" fill="#ffffff"/>
+  </g>
+  <text x="1238" y="528" class="box-title">Store UI</text>
+  <text x="1238" y="562" class="box-copy">• Order result</text>
+  <text x="1238" y="590" class="box-copy">• Kitchen queue</text>
+  <text x="1238" y="618" class="box-copy">• Dashboard stats</text>
+
+  <path d="M 342 470 L 432 470" class="flow"/>
+  <text x="386" y="456" class="flow-label" text-anchor="middle">Text / Transcript</text>
+
+  <path d="M 682 470 L 812 470" class="flow"/>
+  <text x="748" y="442" class="flow-label" text-anchor="middle">Authenticated fetch</text>
+  <text x="748" y="468" class="flow-label" text-anchor="middle">Prompt / order request</text>
+
+  <path d="M 1134 470 L 1202 470" class="flow"/>
+  <text x="1168" y="458" class="flow-label" text-anchor="middle">Result</text>
+
+  <rect x="48" y="852" width="980" height="272" rx="38" class="dashed-sub"/>
+  <text x="538" y="896" class="section-label" text-anchor="middle">Data &amp; Store Services</text>
+
+  <rect x="92" y="924" width="250" height="186" rx="34" fill="#fdba74" filter="url(#shadow)"/>
+  <text x="138" y="956" class="box-label">Data Layer</text>
+  <g transform="translate(152 978)">
+    <ellipse cx="56" cy="18" rx="38" ry="14" fill="#d1d5db"/>
+    <rect x="18" y="18" width="76" height="62" fill="#e5e7eb"/>
+    <ellipse cx="56" cy="80" rx="38" ry="14" fill="#d1d5db"/>
+    <ellipse cx="56" cy="18" rx="38" ry="14" fill="none" stroke="#6b7280" stroke-width="3"/>
+    <ellipse cx="56" cy="80" rx="38" ry="14" fill="none" stroke="#6b7280" stroke-width="3"/>
+    <line x1="18" y1="18" x2="18" y2="80" stroke="#6b7280" stroke-width="3"/>
+    <line x1="94" y1="18" x2="94" y2="80" stroke="#6b7280" stroke-width="3"/>
+  </g>
+  <text x="132" y="1070" class="box-title">SQLite + Cache</text>
+  <text x="132" y="1100" class="box-copy">Orders and menu state</text>
+
+  <rect x="432" y="914" width="408" height="194" rx="38" fill="#a8c9f0" filter="url(#shadow)"/>
+  <text x="474" y="946" class="box-label">Printer Side</text>
+  <g transform="translate(488 972)">
+    <rect x="0" y="0" width="110" height="66" rx="12" fill="#ffffff" stroke="#374151" stroke-width="4"/>
+    <rect x="16" y="16" width="78" height="18" rx="4" fill="#f3f4f6" stroke="#6b7280" stroke-width="2"/>
+    <rect x="18" y="44" width="74" height="42" rx="6" fill="#e5e7eb" stroke="#6b7280" stroke-width="3"/>
+    <rect x="32" y="58" width="46" height="10" rx="3" fill="#ffffff"/>
+  </g>
+  <text x="628" y="1024" class="box-title">PrintApp Agent</text>
+  <text x="474" y="1060" class="box-copy">• Polls backend for new orders</text>
+  <text x="474" y="1088" class="box-copy">• Sends receipt to thermal printer</text>
+
+  <path d="M 946 672 L 946 742 C 946 762 932 776 912 776 L 650 776 C 630 776 616 790 616 810 L 616 924" class="flow"/>
+  <text x="702" y="802" class="flow-label">Orders / menu updates</text>
+
+  <path d="M 996 914 L 996 796 C 996 776 1010 762 1030 762 L 1030 672" class="flow"/>
+  <text x="996" y="820" class="flow-label">Poll /api/orders</text>
+</svg>

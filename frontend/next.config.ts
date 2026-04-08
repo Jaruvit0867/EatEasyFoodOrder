@@ -12,7 +12,7 @@ export default function createNextConfig(phase: string): NextConfig {
     config.rewrites = async () => [
       {
         source: "/api/:path*",
-        destination: `${devBackendUrl}/:path*`,
+        destination: `${devBackendUrl}/api/:path*`,
       },
     ];
   }

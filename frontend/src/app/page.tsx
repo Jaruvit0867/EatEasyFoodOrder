@@ -90,8 +90,8 @@ const DINE_OPTION_UI = {
   },
 } as const;
 
-// Backend URL: Use relative "/api" path to leverage Next.js Rewrites (Proxies to 8000)
-// This solves Mixed Content (HTTPS->HTTP) and CORS/Network issues on mobile
+// Frontend calls always go through /api.
+// Next.js rewrites handle local development and Azure SWA proxies the same path in production.
 const BACKEND_URL = API_URL;
 
 export default function VoiceOrderPage() {
