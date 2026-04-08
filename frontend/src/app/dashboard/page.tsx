@@ -259,13 +259,13 @@ export default function DashboardPage() {
 
     const getCategoryColor = (cat: string) => {
         switch (cat) {
-            case "standard": return "bg-green-500/20 text-green-400 border-green-500/30";
-            case "premium": return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
-            case "special": return "bg-purple-500/20 text-purple-400 border-purple-500/30";
-            case "soup": return "bg-red-500/20 text-red-400 border-red-500/30";
-            case "salad": return "bg-cyan-500/20 text-cyan-400 border-cyan-500/30";
-            case "kapkhao": return "bg-orange-500/20 text-orange-400 border-orange-500/30";
-            default: return "bg-gray-500/20 text-gray-400 border-gray-500/30";
+            case "standard": return "bg-emerald-50 text-emerald-700 border-emerald-200";
+            case "premium": return "bg-amber-50 text-amber-700 border-amber-200";
+            case "special": return "bg-orange-50 text-orange-700 border-orange-200";
+            case "soup": return "bg-rose-50 text-rose-700 border-rose-200";
+            case "salad": return "bg-cyan-50 text-cyan-700 border-cyan-200";
+            case "kapkhao": return "bg-yellow-50 text-yellow-700 border-yellow-200";
+            default: return "bg-stone-100 text-stone-700 border-stone-200";
         }
     };
 
@@ -338,7 +338,8 @@ export default function DashboardPage() {
                                 Dashboard
                             </div>
                             <div>
-                                <h1 className="display-font text-3xl text-white sm:text-4xl">จัดการร้านอาหาร</h1>
+                                <p className="section-kicker">Restaurant Control</p>
+                                <h1 className="display-font mt-2 text-3xl text-white sm:text-4xl">จัดการร้านอาหาร</h1>
                             </div>
                         </div>
 
@@ -371,8 +372,8 @@ export default function DashboardPage() {
                                     key={tab.value}
                                     onClick={() => setActiveTab(tab.value)}
                                     className={`inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-all ${isActive
-                                        ? "bg-gradient-to-r from-[var(--accent)] to-[var(--accent-strong)] text-stone-950 shadow-lg"
-                                        : "text-[var(--muted)] hover:bg-white/6 hover:text-white"
+                                        ? "bg-gradient-to-r from-[var(--accent)] to-[var(--accent-strong)] text-stone-50 shadow-[0_16px_30px_rgba(202,122,55,0.22)]"
+                                        : "text-[var(--muted)] hover:bg-[rgba(255,247,237,0.96)] hover:text-[var(--foreground)]"
                                         }`}
                                 >
                                     <Icon className="h-4 w-4" />
@@ -400,8 +401,8 @@ export default function DashboardPage() {
                                         key={option.value}
                                         onClick={() => setScope(option.value)}
                                         className={`rounded-2xl px-4 py-2 text-sm font-semibold transition-colors ${scope === option.value
-                                            ? "bg-white text-stone-950"
-                                            : "text-[var(--muted)] hover:text-white"
+                                            ? "bg-[var(--foreground)] text-stone-50 shadow-[0_10px_24px_rgba(63,45,34,0.18)]"
+                                            : "text-[var(--muted)] hover:bg-[rgba(255,247,237,0.96)] hover:text-[var(--foreground)]"
                                             }`}
                                     >
                                         {option.label}
@@ -417,7 +418,7 @@ export default function DashboardPage() {
                                     {
                                         label: "ออเดอร์ทั้งหมด",
                                         value: orderStats.total,
-                                        tone: "text-white",
+                                        tone: "text-[var(--foreground)]",
                                         icon: ClipboardList,
                                     },
                                     {
@@ -506,9 +507,9 @@ export default function DashboardPage() {
                                     <div className="space-y-3">
                                         {topItems.slice(0, 5).map((item, i) => (
                                             <div key={i} className="flex items-center gap-3 rounded-2xl border border-white/6 bg-white/4 px-4 py-3">
-                                                <span className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${i === 0 ? "bg-yellow-300 text-stone-950" :
-                                                    i === 1 ? "bg-slate-300 text-stone-950" :
-                                                        i === 2 ? "bg-orange-700 text-white" :
+                                                <span className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${i === 0 ? "bg-amber-200 text-amber-900" :
+                                                    i === 1 ? "bg-stone-200 text-stone-800" :
+                                                        i === 2 ? "bg-orange-200 text-orange-900" :
                                                             "bg-white/8 text-[var(--muted)]"
                                                     }`}>
                                                     {i + 1}
@@ -558,8 +559,8 @@ export default function DashboardPage() {
                                         key={cat}
                                         onClick={() => setSelectedCategory(cat)}
                                         className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-colors ${selectedCategory === cat
-                                            ? "bg-white text-stone-950"
-                                            : "bg-white/5 text-[var(--muted)] hover:bg-white/8 hover:text-white"
+                                            ? "bg-[var(--foreground)] text-stone-50 shadow-[0_10px_24px_rgba(63,45,34,0.16)]"
+                                            : "bg-white/5 text-[var(--muted)] hover:bg-[rgba(255,247,237,0.96)] hover:text-[var(--foreground)]"
                                             }`}
                                     >
                                         {labelMap[cat] || cat}
@@ -595,7 +596,7 @@ export default function DashboardPage() {
                                                 <td className="px-4 py-3 text-center">
                                                     <button
                                                         onClick={() => handleToggleActive(item)}
-                                                        className={`w-12 h-6 rounded-full transition-all duration-300 relative ${item.is_active ? "bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]" : "bg-gray-600"}`}
+                                                        className={`relative h-6 w-12 rounded-full transition-all duration-300 ${item.is_active ? "bg-emerald-500 shadow-[0_0_10px_rgba(34,197,94,0.28)]" : "bg-stone-300"}`}
                                                     >
                                                         <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-300 shadow-sm ${item.is_active ? "translate-x-6" : "translate-x-0"}`} />
                                                     </button>
@@ -682,7 +683,7 @@ export default function DashboardPage() {
                                                             )}
                                                             {item.note && (
                                                                 <span className="ml-4 block text-xs italic text-[var(--accent)]">
-                                                                    "{item.note}"
+                                                                    &ldquo;{item.note}&rdquo;
                                                                 </span>
                                                             )}
                                                         </span>
@@ -693,9 +694,9 @@ export default function DashboardPage() {
                                                 {order.total_price.toLocaleString()}฿
                                             </td>
                                             <td className="px-4 py-3 text-center">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-bold border ${order.status === 'completed' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
-                                                    order.status === 'cancelled' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
-                                                        'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                                                <span className={`px-2 py-1 rounded-full text-xs font-bold border ${order.status === 'completed' ? 'bg-green-50 text-green-700 border-green-200' :
+                                                    order.status === 'cancelled' ? 'bg-red-50 text-red-700 border-red-200' :
+                                                        'bg-yellow-50 text-yellow-700 border-yellow-200'
                                                     }`}>
                                                     {order.status === 'completed' ? 'เสร็จสิ้น' :
                                                         order.status === 'cancelled' ? 'ยกเลิก' : 'รอปรุง'}
@@ -721,7 +722,7 @@ export default function DashboardPage() {
 
             {/* Add/Edit Modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
                     <div className="panel-surface w-full max-w-md rounded-[2rem] p-6">
                         <div className="mb-6 flex items-start justify-between gap-4">
                             <div>
@@ -744,7 +745,7 @@ export default function DashboardPage() {
                                     type="text"
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    className="w-full rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-white focus:border-[var(--accent)] focus:outline-none"
+                                    className="w-full rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none"
                                     required
                                 />
                             </div>
@@ -755,7 +756,7 @@ export default function DashboardPage() {
                                     value={formData.keywords}
                                     onChange={(e) => setFormData({ ...formData, keywords: e.target.value })}
                                     placeholder="กะเพรา,หมู"
-                                    className="w-full rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-white placeholder:text-white/30 focus:border-[var(--accent)] focus:outline-none"
+                                    className="w-full rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-[var(--foreground)] placeholder:text-white/30 focus:border-[var(--accent)] focus:outline-none"
                                     required
                                 />
                             </div>
@@ -766,7 +767,7 @@ export default function DashboardPage() {
                                         type="number"
                                         value={formData.base_price}
                                         onChange={(e) => setFormData({ ...formData, base_price: parseInt(e.target.value) || 0 })}
-                                        className="w-full rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-white focus:border-[var(--accent)] focus:outline-none"
+                                        className="w-full rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none"
                                         required
                                     />
                                 </div>
@@ -775,7 +776,7 @@ export default function DashboardPage() {
                                     <select
                                         value={formData.category}
                                         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                                        className="w-full rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-white focus:border-[var(--accent)] focus:outline-none"
+                                        className="w-full rounded-2xl border border-white/8 bg-white/5 px-4 py-3 text-[var(--foreground)] focus:border-[var(--accent)] focus:outline-none"
                                     >
                                         <option value="standard">Standard (50฿)</option>
                                         <option value="premium">Premium (60฿)</option>
@@ -790,13 +791,13 @@ export default function DashboardPage() {
                                 <button
                                     type="button"
                                     onClick={() => setShowModal(false)}
-                                    className="flex-1 rounded-2xl border border-white/8 bg-white/5 py-3 font-medium text-white transition-colors hover:bg-white/10"
+                                    className="flex-1 rounded-2xl border border-white/8 bg-white/5 py-3 font-medium text-[var(--foreground)] transition-colors hover:bg-white/10"
                                 >
                                     ยกเลิก
                                 </button>
                                 <button
                                     type="submit"
-                                    className="flex-1 rounded-2xl bg-gradient-to-r from-[var(--accent)] to-[var(--accent-strong)] py-3 font-bold text-stone-950 transition-transform hover:-translate-y-0.5"
+                                    className="flex-1 rounded-2xl bg-gradient-to-r from-[var(--accent)] to-[var(--accent-strong)] py-3 font-bold text-stone-50 transition-transform hover:-translate-y-0.5"
                                 >
                                     {editingItem ? "บันทึก" : "เพิ่มเมนู"}
                                 </button>

@@ -204,12 +204,13 @@ export default function KitchenPage() {
                                 Kitchen
                             </div>
                             <div>
-                                <h1 className="display-font text-3xl text-white sm:text-4xl">คิวครัว</h1>
+                                <p className="section-kicker">Service Line</p>
+                                <h1 className="display-font mt-2 text-3xl text-white sm:text-4xl">คิวครัว</h1>
                             </div>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-3">
-                            <div className="inline-flex items-center gap-2 rounded-2xl border border-emerald-400/18 bg-emerald-400/10 px-4 py-3 text-sm font-medium text-emerald-100">
+                            <div className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
                                 <RefreshCcw className="h-4 w-4 animate-spin" />
                                 อัปเดตอัตโนมัติทุก 5 วินาที
                             </div>
@@ -272,7 +273,7 @@ export default function KitchenPage() {
                                                         <span className="rounded-full border border-white/8 bg-white/5 px-3 py-1 text-sm font-semibold text-white">
                                                             ออเดอร์ #{order.id}
                                                         </span>
-                                                        <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${isTakeaway ? "bg-[rgba(243,162,79,0.18)] text-[var(--accent)]" : "bg-sky-400/12 text-sky-200"}`}>
+                                                        <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold ${isTakeaway ? "border-amber-200 bg-amber-100 text-amber-700" : "border-sky-200 bg-sky-100 text-sky-700"}`}>
                                                             <TypeIcon className="h-3.5 w-3.5" />
                                                             {isTakeaway ? "กลับบ้าน" : "ทานที่ร้าน"}
                                                         </span>
@@ -282,7 +283,7 @@ export default function KitchenPage() {
                                                         {formatTime(order.created_at)}
                                                     </div>
                                                 </div>
-                                                <div className="rounded-2xl border border-white/8 bg-white/5 px-4 py-2 text-right">
+                                                <div className="rounded-2xl border border-white/8 bg-white/5 px-4 py-2 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
                                                     <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted)]">รวม</p>
                                                     <p className="text-2xl font-bold text-[var(--accent)]">{order.total_price}.-</p>
                                                 </div>
@@ -294,7 +295,7 @@ export default function KitchenPage() {
                                                 const cleanNote = item.note?.replace("ใส่กล่องกลับบ้าน", "").replace(/,\s*$/, "").replace(/^,\s*/, "").trim();
 
                                                 return (
-                                                    <div key={idx} className="rounded-[1.25rem] border border-white/6 bg-black/10 p-4">
+                                                    <div key={idx} className="rounded-[1.25rem] border border-white/6 bg-black/10 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]">
                                                         <div className="flex items-start gap-4">
                                                             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/8 text-base font-bold text-white">
                                                                 {item.quantity}
@@ -308,7 +309,7 @@ export default function KitchenPage() {
                                                                         {item.add_ons.map((addon, aIdx) => (
                                                                             <span
                                                                                 key={aIdx}
-                                                                                className="rounded-full border border-emerald-400/18 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-100"
+                                                                                className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700"
                                                                             >
                                                                                 + {addon.name}
                                                                             </span>
@@ -316,7 +317,7 @@ export default function KitchenPage() {
                                                                     </div>
                                                                 )}
                                                                 {cleanNote && (
-                                                                    <div className="mt-3 inline-flex rounded-full border border-rose-400/18 bg-rose-400/10 px-3 py-1 text-xs font-semibold text-rose-100">
+                                                                    <div className="mt-3 inline-flex rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">
                                                                         {cleanNote}
                                                                     </div>
                                                                 )}
@@ -330,7 +331,7 @@ export default function KitchenPage() {
                                         <div className="grid grid-cols-3 gap-2 border-t border-white/6 p-4">
                                             <button
                                                 onClick={() => handleCancel(order.id)}
-                                                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-400/18 bg-rose-400/10 px-3 py-3 text-sm font-semibold text-rose-100 transition-colors hover:bg-rose-400/16"
+                                                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-3 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-100"
                                             >
                                                 <X className="h-4 w-4" />
                                                 ยกเลิก
@@ -344,7 +345,7 @@ export default function KitchenPage() {
                                             </button>
                                             <button
                                                 onClick={() => handleComplete(order.id)}
-                                                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-300 to-emerald-400 px-3 py-3 text-sm font-bold text-emerald-950 transition-transform hover:-translate-y-0.5"
+                                                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-400 px-3 py-3 text-sm font-bold text-stone-50 transition-transform hover:-translate-y-0.5"
                                             >
                                                 <Check className="h-4 w-4" />
                                                 เสร็จแล้ว

@@ -81,12 +81,12 @@ const DINE_OPTION_UI = {
   "dine-in": {
     label: "ทานที่ร้าน",
     icon: UtensilsCrossed,
-    className: "bg-sky-400/12 text-sky-200",
+    className: "border border-sky-200 bg-sky-100 text-sky-700",
   },
   takeaway: {
     label: "กลับบ้าน",
     icon: Package,
-    className: "bg-[rgba(243,162,79,0.18)] text-[var(--accent)]",
+    className: "border border-amber-200 bg-amber-100 text-amber-700",
   },
 } as const;
 
@@ -895,7 +895,10 @@ export default function VoiceOrderPage() {
           <section className="order-panel order-main-panel panel-surface flex min-h-[calc(100vh-2.5rem)] flex-col rounded-[2rem] p-5 sm:p-7 lg:p-8">
             <header className="order-header mb-5 flex items-start justify-between gap-4 border-b border-white/8 pb-5">
               <div className="space-y-3">
-                <h1 className="order-title display-font text-3xl text-white lg:text-4xl">EatEasy Order</h1>
+                <div>
+                  <p className="section-kicker">Front Counter Service</p>
+                  <h1 className="order-title display-font mt-2 text-3xl text-white lg:text-4xl">EatEasy Order</h1>
+                </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={`order-status-pill inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium ${appState === "error"
@@ -1003,7 +1006,7 @@ export default function VoiceOrderPage() {
                     className={`order-mic-button
                       group relative flex h-56 w-56 items-center justify-center rounded-full transition-all duration-500 sm:h-72 sm:w-72
                       ${appState === "idle" || appState === "review" || appState === "error"
-                        ? "border border-[rgba(243,162,79,0.22)] bg-gradient-to-br from-amber-200/10 via-orange-400/8 to-rose-500/10 hover:-translate-y-1 ring-accent"
+                        ? "border border-[rgba(243,162,79,0.28)] bg-gradient-to-br from-amber-50 via-orange-300/20 to-rose-400/15 shadow-[0_24px_54px_rgba(202,122,55,0.18),inset_0_1px_0_rgba(255,255,255,0.72)] hover:-translate-y-1 ring-accent"
                         : ""}
                       ${appState === "recording"
                         ? noteMode >= 0
@@ -1304,11 +1307,11 @@ export default function VoiceOrderPage() {
                     <Trash2 className="h-4 w-4 text-[var(--accent)]" />
                     ล้าง
                   </button>
-                  <button
-                    onClick={confirmOrder}
-                    disabled={appState === "processing"}
-                    className="col-span-3 inline-flex h-14 items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-[var(--accent)] via-orange-400 to-[var(--accent-strong)] text-lg font-bold text-stone-950 transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
+                <button
+                  onClick={confirmOrder}
+                  disabled={appState === "processing"}
+                  className="col-span-3 inline-flex h-14 items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-[var(--accent)] via-orange-400 to-[var(--accent-strong)] text-lg font-bold text-stone-50 transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                >
                     <CircleCheckBig className="h-5 w-5" />
                     ยืนยันรายการ
                   </button>
@@ -1482,7 +1485,7 @@ export default function VoiceOrderPage() {
                   onClick={() => submitOrder("dine-in")}
                   className="group rounded-[1.75rem] border border-sky-300/20 bg-sky-300/8 px-5 py-8 text-left transition-transform hover:-translate-y-1"
                 >
-                  <UtensilsCrossed className="h-8 w-8 text-sky-200 transition-transform group-hover:scale-110" />
+                  <UtensilsCrossed className="h-8 w-8 text-sky-700 transition-transform group-hover:scale-110" />
                   <p className="mt-6 text-2xl font-bold text-white">ทานที่ร้าน</p>
                 </button>
 
